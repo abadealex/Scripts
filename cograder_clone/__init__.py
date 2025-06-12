@@ -14,7 +14,6 @@ migrate = Migrate()
 login_manager = LoginManager()
 mail = Mail()
 
-# Create required upload folders
 def create_upload_folders(app):
     try:
         folders = [
@@ -28,7 +27,6 @@ def create_upload_folders(app):
     except KeyError as e:
         raise RuntimeError(f"Missing expected config key: {e}")
 
-# Set up file logging for production
 def setup_logging(app):
     if not app.debug:
         handler = logging.FileHandler('app.log')
@@ -39,7 +37,6 @@ def setup_logging(app):
         app.logger.setLevel(logging.INFO)
         app.logger.info('App started')
 
-# Custom error pages
 def register_error_handlers(app):
     @app.errorhandler(404)
     def page_not_found(e):
@@ -49,7 +46,6 @@ def register_error_handlers(app):
     def internal_error(e):
         return render_template("errors/500.html"), 500
 
-# Main application factory
 def create_app(config_name='default'):
     app = Flask(__name__)
     app.config.from_object(config_by_name[config_name])
@@ -62,29 +58,27 @@ def create_app(config_name='default'):
 
     login_manager.login_view = 'auth.login'
 
-    # Set up environment
+    # Setup environment
     create_upload_folders(app)
     setup_logging(app)
     register_error_handlers(app)
 
-    # Inject current year into templates
     @app.context_processor
     def inject_year():
         return {'current_year': datetime.now().year}
 
-    # Import models and user loader
-    from cograder_clone import models
-    from cograder_clone.models import User
+    # Import models here to avoid circular imports
+    from .models import User
 
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
 
     # Register blueprints
-    from cograder_clone.app.auth.routes import auth as auth_blueprint
-    from cograder_clone.app.main.routes import main as main_blueprint
-    from cograder_clone.app.student.routes import student_bp as student_blueprint
-    from cograder_clone.app.teacher.routes import teacher_bp as teacher_blueprint
+    from .app.auth.routes import auth as auth_blueprint
+    from .app.main.routes import main as main_blueprint
+    from .app.student.routes import student_bp as student_blueprint
+    from .app.teacher.routes import teacher_bp as teacher_blueprint
 
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(main_blueprint)
