@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - CoGrader{% endblock %}
+
+{% block content %}
+<div class="container text-center mt-5 pt-5">
+  {% if current_user.is_authenticated %}
+    <h2 class="mb-4">Welcome back, {{ current_user.username }}!</h2>
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-primary btn-lg">Go to Dashboard</a>
+  {% else %}
+    <div class="container text-center mt-5">
+      <h1 class="display-4">Welcome to CoGrader</h1>
+      <p class="lead">AI-powered answer sheet evaluation with feedback, scoring, and visual annotations.</p>
+      <div class="mt-4">
+        <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg m-2">Login</a>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-outline-secondary btn-lg m-2">Register</a>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Submit Answer Sheet - CoGrader{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">📝 Submit Your Answer Sheet</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" enctype="multipart/form-data" class="border p-4 rounded shadow-sm bg-light mb-4">
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+            {{ form.guide_id.label(class="form-label") }}
+            {{ form.guide_id(class="form-select") }}
+            {% if form.guide_id.errors %}
+                <div class="text-danger small">
+                    {% for error in form.guide_id.errors %}
+                        {{ error }}<br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.file.label(class="form-label") }}
+            {{ form.file(class="form-control") }}
+            <small class="form-text text-muted">Accepted formats: .png, .jpg, .jpeg, .pdf</small>
+            {% if form.file.errors %}
+                <div class="text-danger small">
+                    {% for error in form.file.errors %}
+                        {{ error }}<br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-success w-100">Submit for Grading</button>
+    </form>
+</div>
+{% endblock %}

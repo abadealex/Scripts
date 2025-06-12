@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">📄 My Submissions</h2>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-info">
+          {% for message in messages %}
+            <div>{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% if submissions %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Filename</th>
+                    <th>Submitted On</th>
+                    <th>Grade</th>
+                    <th>Feedback</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in submissions %}
+                <tr>
+                    <td>{{ sub.filename }}</td>
+                    <td>{{ sub.timestamp.strftime('%Y-%m-%d %H:%M') if sub.timestamp else 'N/A' }}</td>
+                    <td>{{ sub.grade if sub.grade else 'Pending' }}</td>
+                    <td>
+                        {% if sub.feedback %}
+                            <span class="text-success">Available</span>
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if sub.marked_file_path %}
+                            <a href="{{ url_for('static', filename=sub.marked_file_path) }}"
+                               class="btn btn-sm btn-outline-primary"
+                               download title="Download marked file">
+                                📥 Marked File
+                            </a>
+                        {% else %}
+                            <span class="text-muted">Not Available</span>
+                        {% endif %}
+
+                        {% if sub.feedback_pdf_path %}
+                            <a href="{{ url_for('static', filename=sub.feedback_pdf_path) }}"
+                               class="btn btn-sm btn-outline-secondary ms-2"
+                               download title="Download feedback PDF">
+                                📝 Feedback PDF
+                            </a>
+                        {% endif %}
+
+                        {% if sub.report_filename %}
+                            <a href="{{ url_for('student_bp.download_report_by_id', submission_id=sub.id) }}"
+                               class="btn btn-sm btn-success ms-2"
+                               download title="Download result report">
+                                📄 Report PDF
+                            </a>
+                        {% else %}
+                            <span class="text-muted ms-2">No Report</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p class="text-muted text-center">You haven’t submitted any answer sheets yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

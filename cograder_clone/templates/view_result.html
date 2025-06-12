@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Graded Submission{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">📋 Graded Submission</h2>
+
+    <div class="mb-3">
+        <p><strong>📄 Filename:</strong> {{ submission.filename }}</p>
+        <p><strong>🧮 Overall Score:</strong> {{ submission.result_json['score'] }}%</p>
+        <p><strong>🗂️ Guide Used:</strong> {{ submission.guide.title if submission.guide else 'N/A' }}</p>
+    </div>
+
+    {% if submission.result_json['question_scores'] %}
+        <div class="accordion" id="questionAccordion">
+            {% for i, q in enumerate(submission.result_json['question_scores']) %}
+            <div class="accordion-item mb-2 shadow-sm">
+                <h2 class="accordion-header" id="heading{{ i }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#collapse{{ i }}" aria-expanded="false"
+                            aria-controls="collapse{{ i }}">
+                        📝 Question {{ i + 1 }}
+                        <span class="ms-2 badge 
+                            {% if q.final_score >= 75 %}bg-success
+                            {% elif q.final_score >= 50 %}bg-warning
+                            {% else %}bg-danger
+                            {% endif %}">
+                            {{ q.final_score }}%
+                        </span>
+                    </button>
+                </h2>
+                <div id="collapse{{ i }}" class="accordion-collapse collapse"
+                     aria-labelledby="heading{{ i }}" data-bs-parent="#questionAccordion">
+                    <div class="accordion-body">
+                        <p><strong>✏️ Your Answer:</strong></p>
+                        <div class="border p-3 rounded bg-light mb-3" style="white-space: pre-wrap;">{{ q.student_answer }}</div>
+
+                        <p><strong>✅ Ideal Answer:</strong></p>
+                        <div class="border p-3 rounded bg-white mb-3" style="white-space: pre-wrap;">{{ q.ideal_answer }}</div>
+
+                        <p><strong>🔍 Matched Keywords:</strong> {{ q.matched_keywords }}</p>
+                        <p><strong>🧠 Semantic Match:</strong> {{ q.semantic_score }}%</p>
+
+                        <p><strong>📊 Final Score:</strong> {{ q.final_score }}%
+                            {% if q.final_score >= 80 %}
+                                <span class="text-success ms-2">✅ Excellent</span>
+                            {% elif q.final_score >= 50 %}
+                                <span class="text-warning ms-2">🟡 Needs Improvement</span>
+                            {% else %}
+                                <span class="text-danger ms-2">❌ Poor</span>
+                            {% endif %}
+                        </p>
+
+                        {% if q.feedback %}
+                            <p><strong>💬 Feedback:</strong></p>
+                            <p>{{ q.feedback }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info mt-3">No detailed question feedback available.</div>
+    {% endif %}
+
+    {% if submission.annotated_image_path %}
+    <div class="mt-5">
+        <h4>🖊️ Annotated Answer Sheet:</h4>
+        <img src="{{ url_for('static', filename=submission.annotated_image_path) }}" class="img-fluid rounded border mt-2">
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{{ url_for('student.download_pdf', submission_id=submission.id) }}" class="btn btn-outline-primary me-2">
+            📥 Download PDF Report
+        </a>
+
+        {% if submission.marked_file_path %}
+        <a href="{{ url_for('static', filename=submission.marked_file_path) }}" class="btn btn-outline-success">
+            🖊️ Download Marked File
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="mt-4">
+        <a href="{{ url_for('student.dashboard') }}" class="btn btn-secondary">
+            ⬅ Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
