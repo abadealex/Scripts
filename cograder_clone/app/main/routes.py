@@ -3,7 +3,7 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from cograder_clone.models import MarkingGuide, StudentSubmission
-from werkzeug.exceptions import Forbidden, NotFound
+from werkzeug.exceptions import Forbidden
 import os
 
 main = Blueprint('main', __name__)
@@ -34,7 +34,6 @@ def paginate_query(query, page, per_page=10):
 
 @main.route('/')
 def index():
-    # Landing or marketing page or login redirect
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     return render_template('index.html')
@@ -43,7 +42,6 @@ def index():
 @main.route('/dashboard')
 @login_required
 def dashboard():
-    # Role-based dashboard redirect
     if current_user.role == 'teacher':
         return redirect(url_for('main.teacher_dashboard'))
     elif current_user.role == 'student':
@@ -62,7 +60,6 @@ def teacher_dashboard():
     guides_query = MarkingGuide.query.filter_by(uploaded_by=current_user.id).order_by(MarkingGuide.created_at.desc())
     guides_pagination = paginate_query(guides_query, page)
 
-    # Load submissions per guide efficiently (could optimize with joins if needed)
     guides_with_submissions = []
     for guide in guides_pagination.items:
         submissions = StudentSubmission.query.filter_by(guide_id=guide.id).order_by(StudentSubmission.created_at.desc()).all()
@@ -100,15 +97,12 @@ def student_dashboard():
 def view_submission(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
 
-    # Authorization checks
     if current_user.role == 'student':
         check_student_access(submission)
     elif current_user.role == 'teacher':
         check_teacher_access(submission)
     else:
         abort(403)
-
-    # Add any additional data preparation here as needed
 
     return render_template('view_submission.html', submission=submission)
 
@@ -118,7 +112,6 @@ def view_submission(submission_id):
 def download_pdf(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
 
-    # Authorization
     if current_user.role == 'student':
         check_student_access(submission)
     elif current_user.role == 'teacher':
@@ -126,7 +119,7 @@ def download_pdf(submission_id):
     else:
         abort(403)
 
-    pdf_path = submission.pdf_report  # Assuming stored relative to static folder or absolute path
+    pdf_path = submission.pdf_report
     if not pdf_path or not os.path.isfile(pdf_path):
         flash("PDF report not found.", "warning")
         return redirect(url_for('main.view_submission', submission_id=submission_id))
@@ -139,7 +132,6 @@ def download_pdf(submission_id):
 def download_annotated(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
 
-    # Authorization
     if current_user.role == 'student':
         check_student_access(submission)
     elif current_user.role == 'teacher':
@@ -155,7 +147,6 @@ def download_annotated(submission_id):
     return send_file(annotated_path, as_attachment=True, download_name=f"{submission.filename}_annotated.jpg")
 
 
-# Stub routes for uploads (to be implemented as per your forms & processing logic)
 @main.route('/upload/guide', methods=['GET', 'POST'])
 @login_required
 def upload_guide():
@@ -174,7 +165,15 @@ def upload_submission():
     return render_template('upload_submission.html')
 
 
-# Custom error handlers (optional, put in your main app factory or here)
+# --- TEMPORARY: Initialize DB tables (run once, then remove) ---
+@main.route('/init-db')
+def init_db():
+    from cograder_clone import db
+    db.create_all()
+    return "✅ Database tables created successfully!"
+
+
+# --- Error handlers ---
 
 @main.app_errorhandler(403)
 def forbidden(e):
