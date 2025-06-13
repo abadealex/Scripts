@@ -1,1 +1,2 @@
-web: gunicorn run:app
+web: gunicorn "cograder_clone:create_app()" --bind 0.0.0.0:8000
+

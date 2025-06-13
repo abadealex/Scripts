@@ -1,7 +1,7 @@
-# Base Python image
+# Use official Python slim image
 FROM python:3.10-slim
 
-# Install system dependencies
+# Install system dependencies needed by your app (Tesseract OCR, etc.)
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libglib2.0-0 \
@@ -13,22 +13,18 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set work directory
+# Set working directory
 WORKDIR /app
 
 # Copy and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy all source code
 COPY . .
 
-# Expose port
+# Expose port 5000 to the outside world
 EXPOSE 5000
 
-# Environment variables
-ENV FLASK_APP=run.py
-ENV FLASK_ENV=production
-
-# Run the app
-CMD ["python", "run.py"]
+# Run the Flask app with gunicorn, assuming your Flask app instance is "app" in run.py
+CMD ["gunicorn", "run:app", "--bind", "0.0.0.0:5000"]

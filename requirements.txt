@@ -8,4 +8,5 @@ python-dotenv
 opencv-python
 pytesseract
 Pillow
-reportlab  # (for PDF export later)
+reportlab
+gunicorn
