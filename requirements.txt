@@ -34,7 +34,7 @@ markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 mccabe==0.7.0
 mdurl==0.1.2
-numpy==2.3.0
+numpy==1.26.4
 openai==1.86.0
 opencv-python==4.11.0.86
 packaging==25.0
