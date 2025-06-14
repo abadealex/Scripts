@@ -68,7 +68,7 @@ def create_app(config_name='default'):
         return {'current_year': datetime.now().year}
 
     # Import models here to avoid circular imports
-    from .models import User
+    from .app.models import User
 
     @login_manager.user_loader
     def load_user(user_id):
