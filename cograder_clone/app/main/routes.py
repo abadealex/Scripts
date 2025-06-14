@@ -2,7 +2,8 @@ from flask import (
     Blueprint, render_template, abort, redirect, url_for, flash, send_file, request
 )
 from flask_login import login_required, current_user
-from cograder_clone.models import MarkingGuide, StudentSubmission
+from ..models import MarkingGuide, StudentSubmission  # ✅ FIXED relative import
+from .. import db  # ✅ FIXED import of db
 from werkzeug.exceptions import Forbidden
 import os
 
@@ -168,7 +169,6 @@ def upload_submission():
 # --- TEMPORARY: Initialize DB tables (run once, then remove) ---
 @main.route('/init-db')
 def init_db():
-    from cograder_clone import db
     db.create_all()
     return "✅ Database tables created successfully!"
 

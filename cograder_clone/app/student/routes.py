@@ -9,9 +9,9 @@ import os
 import uuid
 import json
 
-from app.models import db, MarkingGuide, Submission, StudentResult
-from app.forms import StudentUploadForm
-from app.utils import allowed_file, grade_submission, grade_answers
+from ..models import db, MarkingGuide, Submission, StudentResult  # ✅ Fixed import
+from ..forms import StudentUploadForm  # ✅ Fixed import
+from ..utils import allowed_file, grade_submission, grade_answers  # ✅ Fixed import
 
 student_bp = Blueprint('student_bp', __name__, template_folder='../templates')
 

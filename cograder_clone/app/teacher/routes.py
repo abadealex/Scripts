@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, abort
 from flask_login import login_required, current_user
-from app.models import StudentSubmission, MarkingGuide
+from ..models import StudentSubmission, MarkingGuide  # ✅ FIXED: Use relative import
 from sqlalchemy.orm import joinedload
 
 teacher_bp = Blueprint('teacher_bp', __name__, template_folder='../templates')
