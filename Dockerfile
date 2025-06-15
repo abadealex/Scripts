@@ -1,32 +1,35 @@
-# Use official Python slim image
+# Use slim Python base image to reduce size
 FROM python:3.10-slim
 
-# Install system dependencies
-# libgl1 is required for OpenCV to avoid "libGL.so.1" error
+# Install system dependencies needed for OpenCV, Tesseract OCR, and image rendering
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libglib2.0-0 \
     libsm6 \
+    libxrender1 \
     libxext6 \
-    libxrender-dev \
+    build-essential \
     poppler-utils \
-    fonts-dejavu \
-    libgl1 && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Set working directory inside the container
 WORKDIR /app
 
-# Copy and install Python dependencies
+# Copy only requirements file first (for better caching)
 COPY requirements.txt .
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all project files
+# Copy the rest of the application code
 COPY . .
 
-# Expose port
-EXPOSE 5000
+# Set environment variables
+ENV FLASK_ENV=production
+ENV PYTHONUNBUFFERED=1
 
-# Start the Flask app with gunicorn
-CMD ["gunicorn", "run:app", "--bind", "0.0.0.0:5000"]
+# Expose the port Railway will use
+EXPOSE 8000
+
+# Start the app using Gunicorn and wsgi.py (which should contain: app = create_app())
+CMD ["gunicorn", "-b", "0.0.0.0:8000", "wsgi:app"]
