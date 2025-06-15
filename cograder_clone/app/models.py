@@ -21,7 +21,6 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f"<User {self.email} ({self.role})>"
 
-
 # ------------------- Marking Guide Model -------------------
 
 class MarkingGuide(db.Model):
@@ -38,7 +37,6 @@ class MarkingGuide(db.Model):
 
     def __repr__(self):
         return f"<MarkingGuide {self.title}>"
-
 
 # ------------------- Student Submission Model -------------------
 
@@ -61,7 +59,6 @@ class StudentSubmission(db.Model):
 
     def __repr__(self):
         return f"<StudentSubmission {self.id} by Student {self.student_id}>"
-
 
 # ------------------- Result Model -------------------
 
