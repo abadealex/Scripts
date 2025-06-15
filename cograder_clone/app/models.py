@@ -7,7 +7,7 @@ db = SQLAlchemy()
 # ------------------- User Model -------------------
 
 class User(UserMixin, db.Model):
-    __tablename__ = 'user'  # You can change to 'users' for plural if you want
+    __tablename__ = 'user'  # or 'users' if you prefer
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
@@ -21,10 +21,11 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f"<User {self.email} ({self.role})>"
 
+
 # ------------------- Marking Guide Model -------------------
 
 class MarkingGuide(db.Model):
-    __tablename__ = 'marking_guide'  # Or 'marking_guides'
+    __tablename__ = 'marking_guide'  # or 'marking_guides'
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
@@ -38,10 +39,11 @@ class MarkingGuide(db.Model):
     def __repr__(self):
         return f"<MarkingGuide {self.title}>"
 
+
 # ------------------- Student Submission Model -------------------
 
 class StudentSubmission(db.Model):
-    __tablename__ = 'student_submissions'  # Or 'student_submission' if singular
+    __tablename__ = 'student_submissions'
 
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -60,10 +62,11 @@ class StudentSubmission(db.Model):
     def __repr__(self):
         return f"<StudentSubmission {self.id} by Student {self.student_id}>"
 
+
 # ------------------- Result Model -------------------
 
 class Result(db.Model):
-    __tablename__ = 'result'  # Or 'results'
+    __tablename__ = 'result'  # or 'results'
 
     id = db.Column(db.Integer, primary_key=True)
     submission_id = db.Column(db.Integer, db.ForeignKey('student_submissions.id'), nullable=False)

@@ -10,7 +10,7 @@ import uuid
 import json
 
 from cograder_clone import db  # Absolute import of db
-from cograder_clone.app.models import MarkingGuide, Submission, StudentResult  # Absolute model imports
+from cograder_clone.app.models import MarkingGuide, StudentSubmission, Result  # Correct model imports
 from cograder_clone.app.forms import StudentUploadForm  # Absolute import of form
 from cograder_clone.app.utils import allowed_file, grade_submission, grade_answers  # Absolute import of utils
 
@@ -66,7 +66,7 @@ def student_upload():
             return redirect(request.url)
 
         # Save submission record
-        submission = Submission(
+        submission = StudentSubmission(
             student_id=current_user.id,
             guide_id=guide.id,
             answer_filename=filepath,
@@ -89,8 +89,8 @@ def student_upload():
 @student_bp.route('/student/results')
 @login_required
 def view_results():
-    submissions = Submission.query.filter_by(student_id=current_user.id)\
-        .order_by(Submission.timestamp.desc()).all()
+    submissions = StudentSubmission.query.filter_by(student_id=current_user.id)\
+        .order_by(StudentSubmission.timestamp.desc()).all()
     return render_template('student_results.html', submissions=submissions)
 
 
@@ -98,7 +98,7 @@ def view_results():
 @student_bp.route('/student/result/<int:submission_id>')
 @login_required
 def view_single_result(submission_id):
-    submission = Submission.query.get_or_404(submission_id)
+    submission = StudentSubmission.query.get_or_404(submission_id)
     if submission.student_id != current_user.id:
         abort(403)
     return render_template('view_result.html', result=submission)
@@ -108,7 +108,7 @@ def view_single_result(submission_id):
 @student_bp.route('/student/download_report/<int:submission_id>')
 @login_required
 def download_report_by_id(submission_id):
-    submission = Submission.query.get_or_404(submission_id)
+    submission = StudentSubmission.query.get_or_404(submission_id)
     if current_user.role == 'student' and submission.student_id != current_user.id:
         abort(403)
 
@@ -159,7 +159,7 @@ def student_submit():
         return jsonify({"error": "Grading failed"}), 500
 
     # Save structured result
-    result = StudentResult(
+    result = Result(
         student_id=current_user.id,
         guide_id=guide.id,
         raw_score=score,
