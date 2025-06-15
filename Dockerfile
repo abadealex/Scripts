@@ -10,9 +10,9 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     poppler-utils \
     fonts-dejavu \
-    libgl1 \                         # ✅ Fix for OpenCV ImportError (libGL.so.1)
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    libgl1 && \  # Fix for OpenCV ImportError (libGL.so.1)
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
