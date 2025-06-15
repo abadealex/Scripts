@@ -1,7 +1,8 @@
 # Use official Python slim image
 FROM python:3.10-slim
 
-# Install system dependencies (Tesseract, OpenCV, and others)
+# Install system dependencies
+# libgl1 is required for OpenCV to avoid "libGL.so.1" error
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libglib2.0-0 \
@@ -10,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     poppler-utils \
     fonts-dejavu \
-    libgl1 && \  # Fix for OpenCV ImportError (libGL.so.1)
+    libgl1 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
