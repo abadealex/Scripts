@@ -3,6 +3,6 @@
     "command": "pip install -r requirements.txt"
   },
   "deploy": {
-    "startCommand": "gunicorn -b 0.0.0.0:$PORT wsgi:app"
+    "startCommand": "sh -c 'gunicorn wsgi:app --bind 0.0.0.0:$PORT'"
   }
 }
