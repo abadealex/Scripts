@@ -9,10 +9,10 @@ import os
 import uuid
 import json
 
-from cograder_clone import db  # ✅ Absolute import of db
-from cograder_clone.app.models import MarkingGuide, Submission, StudentResult  # ✅ Absolute model imports
-from cograder_clone.app.forms import StudentUploadForm  # ✅ Absolute import of form
-from cograder_clone.app.utils import allowed_file, grade_submission, grade_answers  # ✅ Absolute import of utils
+from cograder_clone import db  # Absolute import of db
+from cograder_clone.app.models import MarkingGuide, Submission, StudentResult  # Absolute model imports
+from cograder_clone.app.forms import StudentUploadForm  # Absolute import of form
+from cograder_clone.app.utils import allowed_file, grade_submission, grade_answers  # Absolute import of utils
 
 student_bp = Blueprint('student_bp', __name__)
 
@@ -26,11 +26,12 @@ def student_upload():
     if form.validate_on_submit():
         file = form.file.data
 
-        # Validate file
+        # Validate file presence
         if not file or file.filename.strip() == '':
             flash('No file selected.', 'danger')
             return redirect(request.url)
 
+        # Validate file type
         if not allowed_file(file.filename):
             flash('Invalid file type. Only JPG, JPEG, PNG, and PDF are allowed.', 'danger')
             return redirect(request.url)
@@ -44,7 +45,7 @@ def student_upload():
             flash(f'File exceeds the {max_mb}MB size limit.', 'danger')
             return redirect(request.url)
 
-        # Save file
+        # Save file with unique name
         filename = secure_filename(file.filename)
         unique_name = f"{uuid.uuid4().hex}_{filename}"
         upload_dir = current_app.config['UPLOAD_FOLDER']
@@ -69,9 +70,9 @@ def student_upload():
             student_id=current_user.id,
             guide_id=guide.id,
             answer_filename=filepath,
-            graded_image=result['annotated_file'],
+            graded_image=result.get('annotated_file'),
             report_filename=result.get('pdf_report'),
-            grade=result['total_score'],
+            grade=result.get('total_score'),
             feedback=result.get('feedback', ''),
             timestamp=datetime.utcnow()
         )
@@ -83,16 +84,17 @@ def student_upload():
 
     return render_template('student_upload.html', form=form)
 
-# View all submissions
+
+# View all submissions for current student
 @student_bp.route('/student/results')
 @login_required
 def view_results():
-    submissions = Submission.query.filter_by(
-        student_id=current_user.id
-    ).order_by(Submission.timestamp.desc()).all()
+    submissions = Submission.query.filter_by(student_id=current_user.id)\
+        .order_by(Submission.timestamp.desc()).all()
     return render_template('student_results.html', submissions=submissions)
 
-# View individual submission
+
+# View a single submission result
 @student_bp.route('/student/result/<int:submission_id>')
 @login_required
 def view_single_result(submission_id):
@@ -101,7 +103,8 @@ def view_single_result(submission_id):
         abort(403)
     return render_template('view_result.html', result=submission)
 
-# Download specific report
+
+# Download specific PDF report for submission
 @student_bp.route('/student/download_report/<int:submission_id>')
 @login_required
 def download_report_by_id(submission_id):
@@ -119,18 +122,23 @@ def download_report_by_id(submission_id):
         download_name=f"{current_user.email}_Graded_Report.pdf"
     )
 
-# Serve secure files (e.g. marked images, reports)
+
+# Serve secure marked images or reports by filename
 @student_bp.route('/download/<filename>')
 @login_required
 def download_file_by_name(filename):
-    if not filename.endswith(('.pdf', '.jpg', '.jpeg', '.png')):
+    allowed_extensions = ('.pdf', '.jpg', '.jpeg', '.png')
+    if not filename.lower().endswith(allowed_extensions):
         abort(400, description="Invalid file type.")
-    return send_file(
-        os.path.join(current_app.config['MARKED_FOLDER'], filename),
-        as_attachment=True
-    )
 
-# JSON API: Submit answers via frontend
+    file_path = os.path.join(current_app.config['MARKED_FOLDER'], filename)
+    if not os.path.exists(file_path):
+        abort(404, description="File not found.")
+
+    return send_file(file_path, as_attachment=True)
+
+
+# JSON API endpoint: submit answers and get grading feedback
 @student_bp.route('/student/submit', methods=['POST'])
 @login_required
 def student_submit():
@@ -142,7 +150,7 @@ def student_submit():
     if not guide:
         return jsonify({"error": "Marking guide not found"}), 404
 
-    student_answers = data['answers']  # Dict like {"Q1": "...", "Q2": "..."}
+    student_answers = data['answers']  # Expected dict like {"Q1": "...", "Q2": "..."}
 
     try:
         graded, score, total = grade_answers(guide, student_answers)
