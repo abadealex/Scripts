@@ -1,33 +1,40 @@
 from flask import Blueprint, render_template, request, abort
 from flask_login import login_required, current_user
-from ..models import StudentSubmission, MarkingGuide  # ✅ FIXED: Use relative import
 from sqlalchemy.orm import joinedload
 
-teacher_bp = Blueprint('teacher_bp', __name__, template_folder='../templates')
+from cograder_clone import db  # ✅ Use absolute import
+from cograder_clone.app.models import StudentSubmission, MarkingGuide  # ✅ Full path import
 
-# Role restriction
+teacher_bp = Blueprint('teacher_bp', __name__)  # ✅ Global template directory is used
+
+# Restrict access to teachers only
 @teacher_bp.before_request
 def require_teacher_role():
     if not current_user.is_authenticated or current_user.role != 'teacher':
         abort(403)
 
-# Teacher Dashboard
+# Teacher dashboard route
 @teacher_bp.route('/dashboard')
 @login_required
 def teacher_dashboard():
-    # Fetch teacher's guides
+    # Get all guides created by this teacher
     guides = MarkingGuide.query.filter_by(teacher_id=current_user.id).all()
 
-    # Optional: Filter by guide_id (from dropdown)
+    # Optional filter for selected guide
     guide_filter = request.args.get("guide_id", type=int)
 
-    # Prepare data: list of dicts with guide + its submissions
     guides_with_submissions = []
     for guide in guides:
-        submissions_query = StudentSubmission.query.options(joinedload('student')).filter_by(guide_id=guide.id)
         if guide_filter and guide.id != guide_filter:
             continue
-        submissions = submissions_query.order_by(StudentSubmission.timestamp.desc()).all()
+        # Load submissions for each guide with student data
+        submissions = (
+            StudentSubmission.query
+            .options(joinedload(StudentSubmission.student))
+            .filter_by(guide_id=guide.id)
+            .order_by(StudentSubmission.timestamp.desc())
+            .all()
+        )
         guides_with_submissions.append({
             "guide": guide,
             "submissions": submissions

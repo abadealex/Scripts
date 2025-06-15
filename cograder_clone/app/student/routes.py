@@ -9,13 +9,14 @@ import os
 import uuid
 import json
 
-from ..models import db, MarkingGuide, Submission, StudentResult  # ✅ Fixed import
-from ..forms import StudentUploadForm  # ✅ Fixed import
-from ..utils import allowed_file, grade_submission, grade_answers  # ✅ Fixed import
+from cograder_clone import db  # ✅ Absolute import of db
+from cograder_clone.app.models import MarkingGuide, Submission, StudentResult  # ✅ Absolute model imports
+from cograder_clone.app.forms import StudentUploadForm  # ✅ Absolute import of form
+from cograder_clone.app.utils import allowed_file, grade_submission, grade_answers  # ✅ Absolute import of utils
 
-student_bp = Blueprint('student_bp', __name__, template_folder='../templates')
+student_bp = Blueprint('student_bp', __name__)
 
-
+# Student upload route (image/PDF)
 @student_bp.route('/student/upload', methods=['GET', 'POST'])
 @login_required
 def student_upload():
@@ -25,7 +26,7 @@ def student_upload():
     if form.validate_on_submit():
         file = form.file.data
 
-        # File checks
+        # Validate file
         if not file or file.filename.strip() == '':
             flash('No file selected.', 'danger')
             return redirect(request.url)
@@ -34,7 +35,7 @@ def student_upload():
             flash('Invalid file type. Only JPG, JPEG, PNG, and PDF are allowed.', 'danger')
             return redirect(request.url)
 
-        # Size check
+        # Check file size
         file.seek(0, os.SEEK_END)
         file_length = file.tell()
         file.seek(0)
@@ -55,7 +56,7 @@ def student_upload():
 
         guide = MarkingGuide.query.get_or_404(form.guide_id.data)
 
-        # Grade
+        # Grade the submission
         try:
             result = grade_submission(filepath, guide, current_user.email, output_dir=upload_dir)
         except Exception as e:
@@ -63,7 +64,7 @@ def student_upload():
             flash(f"Grading failed: {str(e)}", "danger")
             return redirect(request.url)
 
-        # Save to DB
+        # Save submission record
         submission = Submission(
             student_id=current_user.id,
             guide_id=guide.id,
@@ -82,7 +83,7 @@ def student_upload():
 
     return render_template('student_upload.html', form=form)
 
-
+# View all submissions
 @student_bp.route('/student/results')
 @login_required
 def view_results():
@@ -91,23 +92,20 @@ def view_results():
     ).order_by(Submission.timestamp.desc()).all()
     return render_template('student_results.html', submissions=submissions)
 
-
+# View individual submission
 @student_bp.route('/student/result/<int:submission_id>')
 @login_required
 def view_single_result(submission_id):
     submission = Submission.query.get_or_404(submission_id)
-
     if submission.student_id != current_user.id:
         abort(403)
-
     return render_template('view_result.html', result=submission)
 
-
+# Download specific report
 @student_bp.route('/student/download_report/<int:submission_id>')
 @login_required
 def download_report_by_id(submission_id):
     submission = Submission.query.get_or_404(submission_id)
-
     if current_user.role == 'student' and submission.student_id != current_user.id:
         abort(403)
 
@@ -121,25 +119,22 @@ def download_report_by_id(submission_id):
         download_name=f"{current_user.email}_Graded_Report.pdf"
     )
 
-
+# Serve secure files (e.g. marked images, reports)
 @student_bp.route('/download/<filename>')
 @login_required
 def download_file_by_name(filename):
-    """Serve generated PDFs securely."""
     if not filename.endswith(('.pdf', '.jpg', '.jpeg', '.png')):
         abort(400, description="Invalid file type.")
-
     return send_file(
         os.path.join(current_app.config['MARKED_FOLDER'], filename),
         as_attachment=True
     )
 
-
+# JSON API: Submit answers via frontend
 @student_bp.route('/student/submit', methods=['POST'])
 @login_required
 def student_submit():
     data = request.get_json()
-
     if not data or 'answers' not in data or 'guide_id' not in data:
         return jsonify({"error": "Missing required data"}), 400
 
@@ -147,7 +142,7 @@ def student_submit():
     if not guide:
         return jsonify({"error": "Marking guide not found"}), 404
 
-    student_answers = data['answers']  # Expects: {"Q1": "answer...", "Q2": "answer..."}
+    student_answers = data['answers']  # Dict like {"Q1": "...", "Q2": "..."}
 
     try:
         graded, score, total = grade_answers(guide, student_answers)
@@ -155,7 +150,7 @@ def student_submit():
         current_app.logger.error(f"Grading error in /student/submit: {str(e)}")
         return jsonify({"error": "Grading failed"}), 500
 
-    # Save to DB
+    # Save structured result
     result = StudentResult(
         student_id=current_user.id,
         guide_id=guide.id,

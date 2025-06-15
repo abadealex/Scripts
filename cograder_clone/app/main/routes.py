@@ -3,7 +3,7 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from ..models import MarkingGuide, StudentSubmission  # ✅ FIXED relative import
-from .. import db  # ✅ FIXED import of db
+from cograder_clone import db  # ✅ CORRECT
 from werkzeug.exceptions import Forbidden
 import os
 
