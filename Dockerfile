@@ -1,36 +1,29 @@
 # Use slim Python base image to reduce size
 FROM python:3.10-slim
 
-# Install system dependencies needed for OpenCV, Tesseract OCR, and image rendering
+# Install essential system dependencies only
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
-    libglib2.0-0 \
-    libsm6 \
-    libxrender1 \
-    libxext6 \
-    libgl1-mesa-glx \
-    build-essential \
     poppler-utils \
-    && rm -rf /var/lib/apt/lists/*
+    libgl1-mesa-glx \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# Copy only requirements file first (for better caching)
-COPY requirements.txt .
-
 # Install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Copy app files
 COPY . .
 
-# Set environment variables
+# Environment settings
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Expose the port Railway will use
+# Expose Railway port
 EXPOSE 8000
 
-# Start the app using Gunicorn and wsgi.py (which should contain: app = create_app())
+# Start app
 CMD ["gunicorn", "-b", "0.0.0.0:8000", "wsgi:app"]
