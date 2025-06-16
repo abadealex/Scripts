@@ -35,4 +35,3 @@ WTForms==3.2.1
 reportlab==4.4.1
 fpdf
 sentence-transformers==2.2.2
-"sentence-transformers"  
