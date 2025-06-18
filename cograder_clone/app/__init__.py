@@ -66,16 +66,16 @@ def create_app(config_name='default'):
     def inject_year():
         return {'current_year': datetime.now().year}
 
-    from apps.models import User
+    from cograder_clone.app.models import User
 
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
 
-    from apps.auth.routes import auth as auth_blueprint
-    from apps.main.routes import main as main_blueprint
-    from apps.student.routes import student_bp as student_blueprint
-    from apps.teacher.routes import teacher_bp as teacher_blueprint
+    from cograder_clone.app.auth.routes import auth as auth_blueprint
+    from cograder_clone.app.main.routes import main as main_blueprint
+    from cograder_clone.app.student.routes import student_bp as student_blueprint
+    from cograder_clone.app.teacher.routes import teacher_bp as teacher_blueprint
 
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(main_blueprint)
