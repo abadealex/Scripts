@@ -8,7 +8,7 @@ from flask import (
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from cograder_clone import db
+from cograder_clone.app import db
 from cograder_clone.app.forms import StudentUploadForm
 from cograder_clone.app.models import MarkingGuide, StudentSubmission, Result
 from cograder_clone.app.utils import allowed_file, grade_submission, grade_answers

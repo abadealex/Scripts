@@ -16,9 +16,9 @@ mail = Mail()
 
 def create_upload_folders(app):
     folders = [
-        app.config['UPLOAD_FOLDER_GUIDES'],
-        app.config['UPLOAD_FOLDER_ANSWERS'],
-        app.config['UPLOAD_FOLDER_MARKED']
+        app.config.get('UPLOAD_FOLDER_GUIDES', 'uploads/guides'),
+        app.config.get('UPLOAD_FOLDER_ANSWERS', 'uploads/answers'),
+        app.config.get('UPLOAD_FOLDER_MARKED', 'uploads/marked')
     ]
     for folder in folders:
         os.makedirs(folder, exist_ok=True)
@@ -51,6 +51,7 @@ def create_app(config_name='default'):
     )
     app.config.from_object(config_by_name[config_name])
 
+    # Initialize Flask extensions
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
@@ -58,20 +59,24 @@ def create_app(config_name='default'):
 
     login_manager.login_view = 'auth.login'
 
+    # Setup folders, logging, and error handling
     create_upload_folders(app)
     setup_logging(app)
     register_error_handlers(app)
 
+    # Add current year to templates
     @app.context_processor
     def inject_year():
         return {'current_year': datetime.now().year}
 
+    # Import models for user loader
     from cograder_clone.app.models import User
 
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
 
+    # Register blueprints
     from cograder_clone.app.auth.routes import auth as auth_blueprint
     from cograder_clone.app.main.routes import main as main_blueprint
     from cograder_clone.app.student.routes import student_bp as student_blueprint
