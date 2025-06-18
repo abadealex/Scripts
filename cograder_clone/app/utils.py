@@ -189,3 +189,31 @@ def create_pdf_report(student_name, guide_name, question_scores, total_score, ou
         pdf.cell(0, 10, "Annotated Answer Sheet:", ln=True)
         pdf.add_image(annotated_img_path)
     pdf.output(output_path)
+
+# ----------- New: grade_answers helper -----------
+def grade_answers(student_text, guide: MarkingGuide):
+    guide_answers = guide.get_answers_list()
+    question_scores = {}
+
+    for idx, q in enumerate(guide_answers, start=1):
+        question = q.get("question", f"Question {idx}")
+        ideal = q.get("ideal_answer", "")
+        student_answer = extract_answer_for_question(student_text, question)
+
+        kw_score, kw_hits = score_keywords(student_answer, KEYWORDS)
+        sim_score = semantic_match(ideal, student_answer)
+        final_score = round((0.5 * kw_score + 0.5 * sim_score) * 100, 2)
+
+        feedback = f"Keywords matched: {', '.join(kw_hits) if kw_hits else 'None'}. "
+        feedback += f"Semantic score: {sim_score*100:.1f}%."
+
+        question_scores[f"Question {idx}"] = {
+            "answer": student_answer,
+            "score": final_score,
+            "feedback": feedback,
+            "matched_keywords": kw_hits,
+            "keyword_score": round(kw_score * 100, 2),
+            "semantic_score": round(sim_score * 100, 2)
+        }
+
+    return question_scores
