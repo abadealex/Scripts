@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()  # Only affects local development
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -9,12 +9,16 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 class Config:
     # General
     SECRET_KEY = os.getenv('SECRET_KEY')
+
+    # TEMP DEBUG: Check if SECRET_KEY is loaded properly
+    print(f"[DEBUG] SECRET_KEY starts with: {SECRET_KEY[:6] + '...' if SECRET_KEY else 'None'}")
+
     if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY environment variable not set!")
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Upload folders (local paths; note ephemeral on some hosts like Railway)
+    # Upload folders (local paths; ephemeral on some platforms)
     UPLOAD_FOLDER_GUIDES = os.path.join(BASE_DIR, 'uploads', 'guides')    # Teacher uploads
     UPLOAD_FOLDER_ANSWERS = os.path.join(BASE_DIR, 'uploads', 'answers')  # Student uploads
     UPLOAD_FOLDER_MARKED = os.path.join(BASE_DIR, 'uploads', 'marked')    # AI-marked output
@@ -32,7 +36,7 @@ class Config:
     MAIL_DEFAULT_SENDER = ('CoGrader', MAIL_USERNAME)
 
     if not MAIL_USERNAME or not MAIL_PASSWORD:
-        print("Warning: MAIL_USERNAME or MAIL_PASSWORD not set. Email sending may fail.")
+        print("[WARNING] MAIL_USERNAME or MAIL_PASSWORD not set. Email sending may fail.")
 
     # Debug flags
     DEBUG = False
@@ -60,15 +64,17 @@ config_by_name = {
     'default': DevelopmentConfig
 }
 
+
 """
-.env.example file sample you should add alongside your project root:
+.env.example file you can use for local development:
 
 SECRET_KEY=your-secret-key
-DATABASE_URL=postgresql://user:password@host:port/dbname
+DATABASE_URL=sqlite:///db.sqlite3
 MAIL_USERNAME=youremail@example.com
 MAIL_PASSWORD=your-email-password
 
 NOTE:
-- On Railway or other ephemeral hosting, uploaded files saved to local disk (uploads/) may be lost on deploy/restart.
-- Consider cloud storage (AWS S3, Railway Persistent Volumes) for production persistent uploads.
+- .env is only used locally with load_dotenv().
+- Render/Heroku/etc. use environment variables set via dashboard, not .env files.
+- Uploaded files saved to local 'uploads/' may be lost on services without persistent storage.
 """
