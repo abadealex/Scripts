@@ -60,10 +60,10 @@ def register_error_handlers(app):
 # Application Factory
 # -----------------------------
 def create_app(config_name='default'):
-    # Absolute paths for templates/static
-    base_dir = os.path.abspath(os.path.dirname(__file__))  # e.g. cograder_clone/app
-    template_dir = os.path.join(base_dir, '..', 'apps', 'templates')
-    static_dir = os.path.join(base_dir, '..', 'apps', 'static')
+    # Correct path for 'app/templates' and 'app/static'
+    base_dir = os.path.abspath(os.path.dirname(__file__))  # cograder_clone/
+    template_dir = os.path.join(base_dir, 'app', 'templates')
+    static_dir = os.path.join(base_dir, 'app', 'static')
 
     app = Flask(
         __name__,
@@ -71,34 +71,34 @@ def create_app(config_name='default'):
         static_folder=static_dir
     )
 
-    # Load config
+    # Load configuration
     app.config.from_object(config_by_name.get(config_name, config_by_name['default']))
 
-    # Init extensions
+    # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     mail.init_app(app)
     login_manager.login_view = 'auth.login'
 
-    # System setup
+    # Setup system components
     create_upload_folders(app)
     setup_logging(app)
     register_error_handlers(app)
 
-    # Inject current year into templates
+    # Context processor to add current year globally
     @app.context_processor
     def inject_year():
         return {'current_year': datetime.now().year}
 
-    # User model and login loader
+    # Load user for Flask-Login
     from cograder_clone.app.models import User
 
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
 
-    # Register Blueprints
+    # Register blueprints
     from cograder_clone.app.auth.routes import auth as auth_blueprint
     from cograder_clone.app.main.routes import main as main_blueprint
     from cograder_clone.app.student.routes import student_bp as student_blueprint
