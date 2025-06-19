@@ -1,11 +1,36 @@
+# Byte-compiled / cache files
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+
+# Virtual environments
 env/
 venv/
+
+# Node (JS) modules
 node_modules/
+
+# Uploads and logs (generated runtime)
 uploads/
-tests/
-.git/
+logs/
 *.log
+
+# Testing artifacts
+tests/
+
+# Git folder (already hidden, but harmless)
+.git/
+
+# Python environment/config
+*.env
+.env
+
+# SQLite or other dev databases
+*.sqlite3
+*.db
+
+# IDE/editor files
+.vscode/
+*.swp
+.DS_Store
+*.bak

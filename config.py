@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()  # Only affects local development
+# Load environment variables from .env (for local development only)
+load_dotenv()
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -16,6 +17,10 @@ class Config:
     if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY environment variable not set!")
 
+    # Logging
+    LOG_FILE = os.path.join(BASE_DIR, 'logs', 'app.log')  # Central place for logs
+
+    # SQLAlchemy
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Upload folders (local paths; ephemeral on some platforms)
@@ -25,7 +30,7 @@ class Config:
 
     # Upload settings
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max file size
 
     # Email settings
     MAIL_SERVER = 'smtp.gmail.com'
@@ -38,7 +43,7 @@ class Config:
     if not MAIL_USERNAME or not MAIL_PASSWORD:
         print("[WARNING] MAIL_USERNAME or MAIL_PASSWORD not set. Email sending may fail.")
 
-    # Debug flags
+    # Flags (can be overridden in subclasses)
     DEBUG = False
     TESTING = False
 
@@ -58,23 +63,9 @@ class ProductionConfig(Config):
         raise RuntimeError("DATABASE_URL environment variable not set for Production!")
 
 
+# Configuration mapping for use in Flask app
 config_by_name = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,
     'default': DevelopmentConfig
 }
-
-
-"""
-.env.example file you can use for local development:
-
-SECRET_KEY=your-secret-key
-DATABASE_URL=sqlite:///db.sqlite3
-MAIL_USERNAME=youremail@example.com
-MAIL_PASSWORD=your-email-password
-
-NOTE:
-- .env is only used locally with load_dotenv().
-- Render/Heroku/etc. use environment variables set via dashboard, not .env files.
-- Uploaded files saved to local 'uploads/' may be lost on services without persistent storage.
-"""
