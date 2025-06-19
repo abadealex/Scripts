@@ -21,9 +21,9 @@ mail = Mail()
 # -----------------------------
 def create_upload_folders(app):
     folders = [
-        app.config.get('UPLOAD_FOLDER_GUIDES', 'uploads/guides'),
-        app.config.get('UPLOAD_FOLDER_ANSWERS', 'uploads/answers'),
-        app.config.get('UPLOAD_FOLDER_MARKED', 'uploads/marked')
+        app.config.get('UPLOAD_FOLDER_GUIDES', os.path.join(app.root_path, 'uploads', 'guides')),
+        app.config.get('UPLOAD_FOLDER_ANSWERS', os.path.join(app.root_path, 'uploads', 'answers')),
+        app.config.get('UPLOAD_FOLDER_MARKED', os.path.join(app.root_path, 'uploads', 'marked'))
     ]
     for folder in folders:
         os.makedirs(folder, exist_ok=True)
@@ -34,12 +34,13 @@ def create_upload_folders(app):
 # -----------------------------
 def setup_logging(app):
     if not app.debug and not app.testing:
-        log_file = app.config.get('LOG_FILE', 'app.log')
+        log_file = app.config.get('LOG_FILE', os.path.join(app.root_path, 'app.log'))
         handler = logging.FileHandler(log_file)
         handler.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
-        app.logger.addHandler(handler)
+        if not any(isinstance(h, logging.FileHandler) for h in app.logger.handlers):
+            app.logger.addHandler(handler)
         app.logger.setLevel(logging.INFO)
         app.logger.info('Application started')
 
@@ -59,10 +60,15 @@ def register_error_handlers(app):
 # Application Factory
 # -----------------------------
 def create_app(config_name='default'):
+    # Calculate absolute paths for templates and static folders
+    base_dir = os.path.abspath(os.path.dirname(__file__))  # e.g. cograder_clone/app
+    template_dir = os.path.join(base_dir, '..', 'apps', 'templates')
+    static_dir = os.path.join(base_dir, '..', 'apps', 'static')
+
     app = Flask(
         __name__,
-        template_folder='apps/templates',
-        static_folder='apps/static'
+        template_folder=template_dir,
+        static_folder=static_dir
     )
 
     # Load config
@@ -75,17 +81,17 @@ def create_app(config_name='default'):
     mail.init_app(app)
     login_manager.login_view = 'auth.login'
 
-    # Setup system
+    # Setup folders, logging, and error handlers
     create_upload_folders(app)
     setup_logging(app)
     register_error_handlers(app)
 
-    # Inject global template variables
+    # Inject current year into all templates
     @app.context_processor
     def inject_year():
         return {'current_year': datetime.now().year}
 
-    # Load user model after app context
+    # Import user model and set login loader
     from cograder_clone.app.models import User
 
     @login_manager.user_loader
