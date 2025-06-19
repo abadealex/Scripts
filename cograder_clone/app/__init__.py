@@ -20,10 +20,11 @@ mail = Mail()
 # Upload Folder Setup
 # -----------------------------
 def create_upload_folders(app):
+    uploads_root = os.path.abspath(os.path.join(app.root_path, '..', '..', 'uploads'))
     folders = [
-        os.path.join(app.root_path, 'uploads', 'guides'),
-        os.path.join(app.root_path, 'uploads', 'answers'),
-        os.path.join(app.root_path, 'uploads', 'marked')
+        os.path.join(uploads_root, 'guides'),
+        os.path.join(uploads_root, 'answers'),
+        os.path.join(uploads_root, 'marked')
     ]
     for folder in folders:
         os.makedirs(folder, exist_ok=True)
@@ -60,10 +61,10 @@ def register_error_handlers(app):
 # Application Factory
 # -----------------------------
 def create_app(config_name='default'):
-    # Correct path for 'app/templates' and 'app/static'
-    base_dir = os.path.abspath(os.path.dirname(__file__))  # cograder_clone/
-    template_dir = os.path.join(base_dir, 'app', 'templates')
-    static_dir = os.path.join(base_dir, 'app', 'static')
+    base_dir = os.path.abspath(os.path.dirname(__file__))  # cograder_clone/app
+    project_root = os.path.abspath(os.path.join(base_dir, '..', '..'))  # cograder_clonenew
+    template_dir = os.path.join(project_root, 'templates')
+    static_dir = os.path.join(project_root, 'static')
 
     app = Flask(
         __name__,
@@ -91,22 +92,25 @@ def create_app(config_name='default'):
     def inject_year():
         return {'current_year': datetime.now().year}
 
-    # Load user for Flask-Login
+    # Load user model for login manager
     from cograder_clone.app.models import User
 
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
 
-    # Register blueprints
-    from cograder_clone.app.auth.routes import auth as auth_blueprint
-    from cograder_clone.app.main.routes import main as main_blueprint
-    from cograder_clone.app.student.routes import student_bp as student_blueprint
-    from cograder_clone.app.teacher.routes import teacher_bp as teacher_blueprint
+    # Register blueprints (safely)
+    try:
+        from cograder_clone.app.auth.routes import auth as auth_blueprint
+        from cograder_clone.app.main.routes import main as main_blueprint
+        from cograder_clone.app.student.routes import student_bp as student_blueprint
+        from cograder_clone.app.teacher.routes import teacher_bp as teacher_blueprint
 
-    app.register_blueprint(auth_blueprint)
-    app.register_blueprint(main_blueprint)
-    app.register_blueprint(student_blueprint)
-    app.register_blueprint(teacher_blueprint)
+        app.register_blueprint(auth_blueprint)
+        app.register_blueprint(main_blueprint)
+        app.register_blueprint(student_blueprint)
+        app.register_blueprint(teacher_blueprint)
+    except Exception as e:
+        app.logger.error(f"Error registering blueprints: {e}")
 
     return app
