@@ -1,50 +1,41 @@
-# 🧠 AI-Powered Marking System
+# 🧠 SmartScripts - AI-Powered Marking System
 
-An intelligent web-based marking platform that automatically grades **handwritten student answers** using **AI**, **OCR**, and **image annotation**. Built for teachers and students, this tool simulates real-world marking by comparing student answers with a sample marking guide, applying visual ticks/crosses, and generating clean, exportable results.
-
----
-
-## ✨ Features
-
-- ✅ Web-based portal for **teachers and students**
-- 📤 Upload **typed sample answers** as a marking guide
-- 📸 Students upload **handwritten answer sheets** (image or PDF)
-- 🧠 AI grades responses using **OCR** + **semantic matching**
-- ✅ Tick/cross overlay on submitted answers (like real grading)
-- 🧾 View/download **marked papers and grade summaries**
-- 🖨️ Export marked papers as **PDF** (ready to print or send)
+SmartScripts is a Flask + React-based web platform that allows teachers to **automatically grade handwritten or typed student answer sheets** using AI technologies like OCR, NLP, and computer vision.
 
 ---
 
-## 🏗️ Tech Stack
+## 🚀 Features
 
-| Component          | Technology Used                          |
-| ------------------ | ----------------------------------------- |
-| Frontend           | React + Tailwind CSS (or plain HTML/CSS) |
-| Backend API        | Python + Flask                           |
-| Image Processing   | OpenCV + Tesseract OCR                   |
-| AI Matching        | OpenAI GPT (or sentence similarity)      |
-| File Storage       | Local filesystem (S3 optional)           |
-| PDF Handling       | ReportLab / PyMuPDF                      |
-| Database           | SQLite / PostgreSQL                      |
-| Hosting            | Render / Heroku                          |
+- 📝 Upload student answer sheets (handwritten or typed)
+- 🎯 Intelligent grading using:
+  - OCR (Tesseract)
+  - GPT-based semantic similarity
+  - Keyword-based scoring
+- ✅ Visual feedback with tick/cross annotations on answers
+- 📊 Teacher dashboard with student scores and summaries
+- 📂 Multi-question structured grading
+- 🖼️ Per-question feedback and result view
+- 🔐 Authentication system for students and teachers
+- 📄 Export reports (PDF - coming soon)
 
 ---
 
-## 🚀 Getting Started
+## 💻 Technologies Used
 
-### 🔧 Prerequisites
+- **Backend**: Flask, SQLAlchemy, PostgreSQL
+- **Frontend**: React, Tailwind CSS (optional)
+- **AI/ML**: Tesseract OCR, GPT (OpenAI API), spaCy
+- **DevOps**: Docker, Render / Railway (deployment)
 
-- Python 3.9+
-- Node.js & npm (if using React)
-- Tesseract installed (`sudo apt install tesseract-ocr` or equivalent)
+---
 
-### 🛠️ Backend Setup (Flask)
+## 🛠️ Local Setup
 
 ```bash
-git clone https://github.com/yourusername/ai-marking-system.git
-cd ai-marking-system
+git clone https://github.com/amooti365/SmartScripts.git
+cd SmartScripts
 python -m venv venv
-source venv/bin/activate  # on Windows: venv\Scripts\activate
+source venv/bin/activate  # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
-python run.py
+flask db upgrade
+flask run
