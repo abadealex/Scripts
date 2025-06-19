@@ -7,9 +7,9 @@ from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
-from cograder_clone.app import db
-from cograder_clone.app.models import StudentSubmission, MarkingGuide
-from cograder_clone.utils.compress_image import compress_image
+from smartscripts.app import db
+from smartscripts.app.models import StudentSubmission, MarkingGuide
+from smartscripts.utils.compress_image import compress_image
 
 teacher_bp = Blueprint('teacher_bp', __name__)
 

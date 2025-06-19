@@ -1,4 +1,4 @@
-from cograder_clone.apps import create_app
+from smartscripts.apps import create_app
 import os
 
 app = create_app()

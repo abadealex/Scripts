@@ -6,7 +6,7 @@ from werkzeug.exceptions import Forbidden
 import os
 
 from ..models import MarkingGuide, StudentSubmission  # Adjust import based on your app structure
-from cograder_clone.app import db
+from smartscripts.app import db
 
 main = Blueprint('main', __name__)
 

@@ -8,11 +8,11 @@ from flask import (
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from cograder_clone.app import db
-from cograder_clone.app.forms import StudentUploadForm
-from cograder_clone.app.models import MarkingGuide, StudentSubmission, Result
-from cograder_clone.app.utils import allowed_file, grade_submission, grade_answers
-from cograder_clone.utils.compress_image import compress_image
+from smartscripts.app import db
+from smartscripts.app.forms import StudentUploadForm
+from smartscripts.app.models import MarkingGuide, StudentSubmission, Result
+from smartscripts.app.utils import allowed_file, grade_submission, grade_answers
+from smartscripts.utils.compress_image import compress_image
 
 student_bp = Blueprint('student_bp', __name__)
 
