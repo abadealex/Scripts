@@ -63,7 +63,7 @@ def register_error_handlers(app):
 def create_app(config_name='default'):
     base_dir = os.path.abspath(os.path.dirname(__file__))  # cograder_clone/app
     # Templates inside cograder_clone/app/templates (Option B)
-    template_dir = os.path.join(base_dir, 'templates')
+    template_dir = os.path.abspath(os.path.join(base_dir, '..', '..', 'templates'))
     # Static files still at project root static/
     static_dir = os.path.abspath(os.path.join(base_dir, '..', '..', 'static'))
 
