@@ -1,5 +1,5 @@
-from app import create_app, db
-from app.models import User, MarkingGuide, StudentSubmission
+from smartscripts.app import create_app, db
+from smartscripts.app.models import User, MarkingGuide, StudentSubmission
 from flask_migrate import Migrate
 from flask.cli import FlaskGroup
 
