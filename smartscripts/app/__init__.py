@@ -1,53 +1,45 @@
 import os
 import logging
 from datetime import datetime
-from flask import Flask, render_template
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from flask_migrate import Migrate
+from flask_migrate import Migrate, upgrade
 from flask_mail import Mail
 from config import config_by_name
 
 # Initialize extensions
 db = SQLAlchemy()
-migrate = Migrate()
 login_manager = LoginManager()
+migrate = Migrate()
 mail = Mail()
-
-def create_upload_folders(app):
-    uploads_root = os.path.abspath(os.path.join(app.root_path, '..', '..', 'uploads'))
-    folders = [
-        os.path.join(uploads_root, 'guides'),
-        os.path.join(uploads_root, 'answers'),
-        os.path.join(uploads_root, 'marked')
-    ]
-    for folder in folders:
-        os.makedirs(folder, exist_ok=True)
-        app.logger.info(f"[INIT] Ensured upload folder: {folder}")
-
-def setup_logging(app):
-    if not app.debug and not app.testing:
-        log_file = app.config.get('LOG_FILE', os.path.join(app.root_path, 'app.log'))
-        if not any(isinstance(h, logging.FileHandler) for h in app.logger.handlers):
-            handler = logging.FileHandler(log_file)
-            handler.setLevel(logging.INFO)
-            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            app.logger.addHandler(handler)
-        app.logger.setLevel(logging.INFO)
-        app.logger.info('Application started')
 
 def register_error_handlers(app):
     @app.errorhandler(404)
-    def page_not_found(e):
-        return render_template("errors/404.html"), 404
+    def not_found_error(error):
+        return "404 Not Found", 404
 
     @app.errorhandler(500)
-    def internal_error(e):
-        return render_template("errors/500.html"), 500
+    def internal_error(error):
+        return "500 Internal Server Error", 500
+
+def create_upload_folders(app):
+    os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
+
+def setup_logging(app):
+    if not app.debug:
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+        file_handler = logging.FileHandler('logs/smartscripts.log')
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('Smartscripts startup')
 
 def create_app(config_name='default'):
-    base_dir = os.path.abspath(os.path.dirname(__file__))  # cograder_clone/app
+    base_dir = os.path.abspath(os.path.dirname(__file__))  # smartscripts/app
     template_dir = os.path.abspath(os.path.join(base_dir, '..', 'templates'))
     static_dir = os.path.abspath(os.path.join(base_dir, '..', 'static'))
 
@@ -67,7 +59,6 @@ def create_app(config_name='default'):
 
     login_manager.login_view = 'auth.login'
 
-    # Setup
     create_upload_folders(app)
     setup_logging(app)
     register_error_handlers(app)
@@ -82,7 +73,15 @@ def create_app(config_name='default'):
     def load_user(user_id):
         return User.query.get(int(user_id))
 
-    # Import blueprints
+    # 🔁 Automatically run DB migration (for Render free tier)
+    with app.app_context():
+        try:
+            upgrade()
+            print("[INFO] Database migrated successfully.")
+        except Exception as e:
+            print(f"[ERROR] Database migration failed: {e}")
+
+    # Register blueprints
     from smartscripts.app.auth.routes import auth as auth_blueprint
     from smartscripts.app.main.routes import main as main_blueprint
     from smartscripts.app.student.routes import student_bp as student_blueprint
