@@ -23,7 +23,7 @@
                         📝 Question {{ i + 1 }}
                         <span class="ms-2 badge 
                             {% if q.final_score >= 75 %}bg-success
-                            {% elif q.final_score >= 50 %}bg-warning
+                            {% elif q.final_score >= 50 %}bg-warning text-dark
                             {% else %}bg-danger
                             {% endif %}">
                             {{ q.final_score }}%
@@ -46,9 +46,9 @@
                             {% if q.final_score >= 80 %}
                                 <span class="text-success ms-2">✅ Excellent</span>
                             {% elif q.final_score >= 50 %}
-                                <span class="text-warning ms-2">🟡 Needs Improvement</span>
+                                <span class="text-warning ms-2">🟡 Fair</span>
                             {% else %}
-                                <span class="text-danger ms-2">❌ Poor</span>
+                                <span class="text-danger ms-2">❌ Needs Improvement</span>
                             {% endif %}
                         </p>
 
@@ -72,19 +72,15 @@
     </div>
     {% endif %}
 
-    <div class="mt-4">
-        <a href="{{ url_for('student.download_pdf', submission_id=submission.id) }}" class="btn btn-outline-primary me-2">
+    <div class="mt-4 d-flex flex-wrap gap-2">
+        <a href="{{ url_for('student.download_pdf', submission_id=submission.id) }}" class="btn btn-outline-primary">
             📥 Download PDF Report
         </a>
-
         {% if submission.marked_file_path %}
         <a href="{{ url_for('static', filename=submission.marked_file_path) }}" class="btn btn-outline-success">
             🖊️ Download Marked File
         </a>
         {% endif %}
-    </div>
-
-    <div class="mt-4">
         <a href="{{ url_for('student.dashboard') }}" class="btn btn-secondary">
             ⬅ Back to Dashboard
         </a>
