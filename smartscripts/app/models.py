@@ -1,31 +1,29 @@
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime
-
-db = SQLAlchemy()
+from smartscripts.app import db
 
 # ------------------- User Model -------------------
 
 class User(UserMixin, db.Model):
-    __tablename__ = 'user'  # or 'users' if you prefer
+    __tablename__ = 'user'
 
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
-    role = db.Column(db.String(10), nullable=False)  # 'teacher' or 'student'
+    username = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(128), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
 
-    # Relationships
     submissions = db.relationship('StudentSubmission', backref='user', lazy=True)
     guides = db.relationship('MarkingGuide', backref='teacher', lazy=True)
 
     def __repr__(self):
-        return f"<User {self.email} ({self.role})>"
+        return f"<User {self.username} ({self.role})>"
 
 
 # ------------------- Marking Guide Model -------------------
 
 class MarkingGuide(db.Model):
-    __tablename__ = 'marking_guide'  # or 'marking_guides'
+    __tablename__ = 'marking_guide'
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
@@ -66,7 +64,7 @@ class StudentSubmission(db.Model):
 # ------------------- Result Model -------------------
 
 class Result(db.Model):
-    __tablename__ = 'result'  # or 'results'
+    __tablename__ = 'result'
 
     id = db.Column(db.Integer, primary_key=True)
     submission_id = db.Column(db.Integer, db.ForeignKey('student_submissions.id'), nullable=False)

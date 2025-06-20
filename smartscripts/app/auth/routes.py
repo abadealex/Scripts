@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from smartscripts.app import db
 from smartscripts.app.models import User
 from smartscripts.app.auth.forms import LoginForm, RegisterForm
@@ -34,9 +34,11 @@ def register():
 
     form = RegisterForm()
     if form.validate_on_submit():
+        hashed_password = generate_password_hash(form.password.data, method='sha256')
         new_user = User(
+            username=form.username.data,
             email=form.email.data,
-            password=generate_password_hash(form.password.data, method='sha256'),
+            password=hashed_password,
             role=form.role.data
         )
         db.session.add(new_user)
@@ -50,5 +52,5 @@ def register():
 @login_required
 def logout():
     logout_user()
-    flash('Logged out.', 'info')
+    flash('You have been logged out.', 'info')
     return redirect(url_for('auth.login'))
