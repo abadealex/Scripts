@@ -1,95 +1,88 @@
 import os
 import logging
-from datetime import datetime
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from flask_login import LoginManager
-from flask_migrate import Migrate, upgrade
 from flask_mail import Mail
-from config import config_by_name
+from alembic.config import Config
+from alembic import command
+import traceback
 
-# Initialize extensions
-db = SQLAlchemy()
+from smartscripts.app.models import db, User
+from smartscripts.app.auth.routes import auth
+from smartscripts.app.main.routes import main
+from smartscripts.app.teacher.routes import teacher_bp
+from smartscripts.app.student.routes import student_bp
+from smartscripts.config import config_by_name
+
+
 login_manager = LoginManager()
-migrate = Migrate()
 mail = Mail()
-
-def register_error_handlers(app):
-    @app.errorhandler(404)
-    def not_found_error(error):
-        return "404 Not Found", 404
-
-    @app.errorhandler(500)
-    def internal_error(error):
-        return "500 Internal Server Error", 500
-
-def create_upload_folders(app):
-    os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
-
-def setup_logging(app):
-    if not app.debug:
-        if not os.path.exists('logs'):
-            os.mkdir('logs')
-        file_handler = logging.FileHandler('logs/smartscripts.log')
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
-        file_handler.setLevel(logging.INFO)
-        app.logger.addHandler(file_handler)
-        app.logger.setLevel(logging.INFO)
-        app.logger.info('Smartscripts startup')
+migrate = Migrate()
 
 def create_app(config_name='default'):
-    base_dir = os.path.abspath(os.path.dirname(__file__))  # smartscripts/app
-    template_dir = os.path.abspath(os.path.join(base_dir, '..', 'templates'))
-    static_dir = os.path.abspath(os.path.join(base_dir, '..', 'static'))
+    try:
+        app = Flask(__name__)
+        app.config.from_object(config_by_name[config_name])
 
-    app = Flask(
-        __name__,
-        template_folder=template_dir,
-        static_folder=static_dir
-    )
+        # Initialize extensions
+        db.init_app(app)
+        login_manager.init_app(app)
+        migrate.init_app(app, db)
+        mail.init_app(app)
 
-    app.config.from_object(config_by_name.get(config_name, config_by_name['default']))
+        login_manager.login_view = "auth.login"
+        login_manager.login_message = "Please log in to access this page."
+        login_manager.login_message_category = "info"
 
-    # Initialize extensions
-    db.init_app(app)
-    migrate.init_app(app, db)
-    login_manager.init_app(app)
-    mail.init_app(app)
+        # Register blueprints
+        app.register_blueprint(auth)
+        app.register_blueprint(main)
+        app.register_blueprint(teacher_bp)
+        app.register_blueprint(student_bp)
 
-    login_manager.login_view = 'auth.login'
+        # Create upload folders if not exist
+        def create_upload_folders():
+            folders = [
+                app.config.get('UPLOAD_FOLDER', 'uploads'),
+                app.config.get('UPLOAD_FOLDER_GUIDES', 'uploads/guides')
+            ]
+            for folder in folders:
+                try:
+                    os.makedirs(folder, exist_ok=True)
+                except Exception as e:
+                    app.logger.error(f"Failed to create folder {folder}: {e}")
 
-    create_upload_folders(app)
-    setup_logging(app)
-    register_error_handlers(app)
+        create_upload_folders()
 
-    @app.context_processor
-    def inject_year():
-        return {'current_year': datetime.now().year}
-
-    from smartscripts.app.models import User
-
-    @login_manager.user_loader
-    def load_user(user_id):
-        return User.query.get(int(user_id))
-
-    # 🔁 Automatically run DB migration (for Render free tier)
-    with app.app_context():
+        # Run DB migrations
         try:
-            upgrade()
-            print("[INFO] Database migrated successfully.")
+            alembic_cfg = Config(os.path.join(app.root_path, 'migrations', 'alembic.ini'))
+            command.upgrade(alembic_cfg, 'head')
+            app.logger.info("Database migrated successfully.")
         except Exception as e:
-            print(f"[ERROR] Database migration failed: {e}")
+            app.logger.error(f"DB migration failed: {e}")
+            # Print full traceback to console/log
+            traceback.print_exc()
 
-    # Register blueprints
-    from smartscripts.app.auth.routes import auth as auth_blueprint
-    from smartscripts.app.main.routes import main as main_blueprint
-    from smartscripts.app.student.routes import student_bp as student_blueprint
-    from smartscripts.app.teacher.routes import teacher_bp as teacher_blueprint
+        # Setup logging to file
+        if not app.debug:
+            log_file = os.path.join(app.root_path, 'app.log')
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setLevel(logging.INFO)
+            formatter = logging.Formatter(
+                '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+            )
+            file_handler.setFormatter(formatter)
+            app.logger.addHandler(file_handler)
 
-    app.register_blueprint(auth_blueprint)
-    app.register_blueprint(main_blueprint)
-    app.register_blueprint(student_blueprint)
-    app.register_blueprint(teacher_blueprint)
+        @login_manager.user_loader
+        def load_user(user_id):
+            return User.query.get(int(user_id))
 
-    return app
+        return app
+
+    except Exception as e:
+        print("[ERROR] create_app failed:")
+        traceback.print_exc()
+        raise
