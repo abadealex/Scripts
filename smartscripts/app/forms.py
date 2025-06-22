@@ -3,7 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from smartscripts.app import db
 from smartscripts.app.models import User
-from smartscripts.app.forms import TeacherRegisterForm, TeacherLoginForm  # Use teacher-specific forms
+
 
 teacher_bp = Blueprint('teacher_bp', __name__, url_prefix='/teacher')
 
