@@ -1,36 +1,66 @@
-# Byte-compiled / cache files
+# -----------------------
+# Python cache/compiled files
+# -----------------------
 __pycache__/
 *.py[cod]
 *$py.class
 
+# -----------------------
 # Virtual environments
+# -----------------------
 env/
 venv/
 
-# Node (JS) modules
+# -----------------------
+# Node.js (if used for frontend)
+# -----------------------
 node_modules/
 
-# Uploads and logs (generated runtime)
+# -----------------------
+# Uploads, logs, and runtime data
+# -----------------------
 uploads/
 logs/
 *.log
 
+# -----------------------
 # Testing artifacts
+# -----------------------
 tests/
+coverage/
+htmlcov/
 
-# Git folder (already hidden, but harmless)
-.git/
-
-# Python environment/config
-*.env
+# -----------------------
+# Environment and config files
+# -----------------------
 .env
+*.env
+*.ini
+*.toml
+*.cfg
 
-# SQLite or other dev databases
+# -----------------------
+# Local databases
+# -----------------------
 *.sqlite3
 *.db
 
-# IDE/editor files
+# -----------------------
+# IDE/editor/system files
+# -----------------------
 .vscode/
+.idea/
 *.swp
 .DS_Store
 *.bak
+
+# -----------------------
+# Ignore secrets or instance folders
+# -----------------------
+instance/
+secrets.json
+
+# -----------------------
+# Git metadata (usually safe to keep, but optional)
+# -----------------------
+.git/
