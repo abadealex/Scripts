@@ -1,5 +1,3 @@
-# smartscripts/app/__init__.py
-
 import os
 import logging
 import traceback
@@ -19,7 +17,11 @@ from smartscripts.config import config_by_name
 
 def create_app(config_name='default'):
     try:
-        app = Flask(__name__)
+        # Determine absolute path to the top-level templates folder (two levels up from this file)
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+        template_dir = os.path.join(base_dir, 'templates')
+
+        app = Flask(__name__, template_folder=template_dir)
         app.config.from_object(config_by_name[config_name])
 
         # Initialize extensions
