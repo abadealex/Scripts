@@ -1,6 +1,7 @@
 import os
 import logging
 import traceback
+from datetime import datetime
 
 from flask import Flask, render_template
 from alembic.config import Config
@@ -22,22 +23,31 @@ print("DATABASE_URL used:", os.getenv("DATABASE_URL"))
 
 def create_app(config_name='default'):
     try:
-        # Set base and templates directory
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+        # Base directory of the app package (where __init__.py is)
+        base_dir = os.path.abspath(os.path.dirname(__file__))
+
+        # Templates folder relative to app/__init__.py
         template_dir = os.path.join(base_dir, 'templates')
 
-        # Initialize Flask app
-        app = Flask(__name__, template_folder=template_dir)
+        # Static folder relative to app/__init__.py
+        static_dir = os.path.join(base_dir, 'static')
 
-        # Override DB URL if set in environment
+        # Initialize Flask app with correct template and static folder paths
+        app = Flask(
+            __name__,
+            template_folder=template_dir,
+            static_folder=static_dir
+        )
+
+        # Override DB URL if set in environment variable
         database_url = os.getenv("DATABASE_URL")
         if database_url:
             app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 
-        # Load config object
+        # Load other configuration from config.py
         app.config.from_object(config_by_name[config_name])
 
-        # Initialize extensions
+        # Initialize Flask extensions
         db.init_app(app)
         login_manager.init_app(app)
         mail.init_app(app)
@@ -58,7 +68,7 @@ def create_app(config_name='default'):
         app.register_blueprint(teacher_bp)
         app.register_blueprint(student_bp)
 
-        # Create upload folders
+        # Create upload folders if they don't exist
         def create_upload_folders():
             folders = [
                 app.config.get('UPLOAD_FOLDER', 'uploads'),
@@ -72,7 +82,7 @@ def create_app(config_name='default'):
 
         create_upload_folders()
 
-        # Alembic migration in development environment
+        # Alembic automatic migration in development environment
         if app.config.get("ENV") == "development":
             alembic_ini_path = os.path.abspath(os.path.join(app.root_path, '..', 'alembic.ini'))
             print("[DEBUG] Alembic ini path:", alembic_ini_path)
@@ -84,7 +94,7 @@ def create_app(config_name='default'):
                 app.logger.error(f"DB migration failed: {e}")
                 traceback.print_exc()
 
-        # Log to file in production
+        # Configure logging to file when not in debug mode
         if not app.debug:
             log_file = os.path.join(app.root_path, 'app.log')
             file_handler = logging.FileHandler(log_file)
@@ -95,8 +105,13 @@ def create_app(config_name='default'):
             file_handler.setFormatter(formatter)
             app.logger.addHandler(file_handler)
 
-        # Register error handlers globally
+        # Register error handlers for 403, 404, 500
         register_error_handlers(app)
+
+        # Inject current year into all templates
+        @app.context_processor
+        def inject_current_year():
+            return {'current_year': datetime.utcnow().year}
 
         return app
 
