@@ -1,9 +1,11 @@
 import os
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash,
-    current_app, abort
+    Blueprint, render_template, request, redirect,
+    url_for, flash, current_app, abort
 )
-from flask_login import login_user, logout_user, login_required, current_user
+from flask_login import (
+    login_user, logout_user, login_required, current_user
+)
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy.orm import joinedload
@@ -11,9 +13,12 @@ from sqlalchemy.orm import joinedload
 from smartscripts.app import db
 from smartscripts.app.models import User, MarkingGuide, StudentSubmission
 from smartscripts.utils.compress_image import compress_image
-from smartscripts.app.forms import TeacherLoginForm, TeacherRegisterForm  # <-- updated here
+from smartscripts.app.forms import (
+    TeacherLoginForm, TeacherRegisterForm
+)
 
 teacher_bp = Blueprint('teacher_bp', __name__, url_prefix='/teacher')
+
 
 # Restrict all routes in this blueprint to teachers only, except login/register/static
 @teacher_bp.before_request
@@ -23,7 +28,9 @@ def require_teacher_role():
         if not current_user.is_authenticated or current_user.role != 'teacher':
             abort(403)
 
+
 # --- Auth Routes ---
+
 
 @teacher_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -32,7 +39,10 @@ def login():
 
     form = TeacherLoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data, role='teacher').first()
+        user = User.query.filter_by(
+            email=form.email.data,
+            role='teacher'
+        ).first()
         if user and check_password_hash(user.password, form.password.data):
             login_user(user, remember=form.remember.data)
             flash('Logged in successfully.', 'success')
@@ -42,6 +52,7 @@ def login():
 
     return render_template('teacher/login.html', form=form)
 
+
 @teacher_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -49,11 +60,13 @@ def register():
 
     form = TeacherRegisterForm()
     if form.validate_on_submit():
-        hashed_password = generate_password_hash(form.password.data, method='sha256')
+        hashed_password = generate_password_hash(
+            form.password.data, method='sha256'
+        )
         new_user = User(
             email=form.email.data,
             password=hashed_password,
-            role='teacher'  # enforce teacher role here
+            role='teacher'
         )
         try:
             db.session.add(new_user)
@@ -67,6 +80,7 @@ def register():
 
     return render_template('teacher/register.html', form=form)
 
+
 @teacher_bp.route('/logout')
 @login_required
 def logout():
@@ -74,7 +88,9 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('teacher_bp.login'))
 
+
 # --- Teacher Dashboard ---
+
 
 @teacher_bp.route('/dashboard')
 @login_required
@@ -104,7 +120,9 @@ def dashboard():
         selected_guide=guide_filter
     )
 
+
 # --- Upload Marking Guide ---
+
 
 @teacher_bp.route('/upload-guide', methods=['GET', 'POST'])
 @login_required
@@ -122,7 +140,10 @@ def upload_guide():
         file.save(file_path)
 
         # Compress large images
-        if file_path.lower().endswith(('.jpg', '.jpeg', '.png')) and os.path.getsize(file_path) > 4 * 1024 * 1024:
+        if (
+            file_path.lower().endswith(('.jpg', '.jpeg', '.png')) and
+            os.path.getsize(file_path) > 4 * 1024 * 1024
+        ):
             compressed_path = os.path.join(upload_dir, f"compressed_{filename}")
             compress_image(file_path, compressed_path)
             os.remove(file_path)

@@ -16,13 +16,16 @@ model = SentenceTransformer('all-MiniLM-L6-v2')
 # Define common grading keywords
 KEYWORDS = [
     'density', 'mass', 'volume', 'weighing scale', 'measuring cylinder',
-    'displacement', 'water level', 'submerge', 'gold', 'compare', 'investigation'
+    'displacement', 'water level', 'submerge', 'gold', 'compare',
+    'investigation'
 ]
 
 # ----------- File Validation -----------
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
+    return (
+        '.' in filename and
+        filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
+    )
 
 # ----------- OCR with Preprocessing -----------
 def extract_text_from_image(image_path):
@@ -32,7 +35,9 @@ def extract_text_from_image(image_path):
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    thresh = cv2.adaptiveThreshold(
+        blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+    )
     text = pytesseract.image_to_string(thresh, lang='eng').strip()
     return text
 
@@ -48,7 +53,13 @@ def semantic_match(expected, actual):
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a strict teacher grading answers."},
-                {"role": "user", "content": f"Compare:\nExpected: {expected}\nStudent: {actual}\nReply with 'Correct' or 'Incorrect'."}
+                {
+                    "role": "user",
+                    "content": (
+                        f"Compare:\nExpected: {expected}\nStudent: {actual}\n"
+                        "Reply with 'Correct' or 'Incorrect'."
+                    )
+                }
             ],
             temperature=0
         )
@@ -66,13 +77,13 @@ def semantic_similarity(student_text, guide_text):
 
 # ----------- Placeholder Answer Extraction -----------
 def extract_answer_for_question(full_text, question):
-    return full_text  # To improve with question-based chunking later
+    return full_text
 
 # ----------- Grading Pipeline -----------
-def grade_submission(image_path, guide: MarkingGuide, student_name, output_dir='uploads/marked'):
+def grade_submission(image_path, guide: MarkingGuide, student_name,
+                     output_dir='uploads/marked'):
     student_text = extract_text_from_image(image_path)
     guide_answers = guide.get_answers_list()
-
     all_scores = []
     question_scores = {}
 
@@ -87,8 +98,10 @@ def grade_submission(image_path, guide: MarkingGuide, student_name, output_dir='
 
         all_scores.append(final_score)
 
-        feedback = f"Keywords matched: {', '.join(kw_hits) if kw_hits else 'None'}. "
-        feedback += f"Semantic score: {sim_score*100:.1f}%."
+        feedback = (
+            f"Keywords matched: {', '.join(kw_hits) if kw_hits else 'None'}. "
+            f"Semantic score: {sim_score*100:.1f}%."
+        )
 
         question_scores[f"Question {idx}"] = {
             "answer": student_answer,
@@ -111,7 +124,10 @@ def grade_submission(image_path, guide: MarkingGuide, student_name, output_dir='
         print("Annotation failed:", e)
         annotated_path = None
 
-    create_pdf_report(student_name, guide.title, question_scores, overall_score, pdf_path, annotated_path)
+    create_pdf_report(
+        student_name, guide.title, question_scores,
+        overall_score, pdf_path, annotated_path
+    )
 
     return {
         "total_score": overall_score,
@@ -136,7 +152,10 @@ def annotate_image(image_path, guide_answers, question_scores, output_path):
             if word and word.lower() in q_data["answer"].lower():
                 mark = "✅" if q_data["score"] >= 60 else "❌"
                 color = (0, 255, 0) if q_data["score"] >= 60 else (0, 0, 255)
-                cv2.putText(img, mark, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
+                cv2.putText(
+                    img, mark, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.2,
+                    color, 2
+                )
                 break
 
     cv2.imwrite(output_path, img)
@@ -177,7 +196,8 @@ class FeedbackPDF(FPDF):
             self.image(image_path, x=10, y=self.get_y(), w=180)
             self.ln(90)
 
-def create_pdf_report(student_name, guide_name, question_scores, total_score, output_path, annotated_img_path=None):
+def create_pdf_report(student_name, guide_name, question_scores,
+                      total_score, output_path, annotated_img_path=None):
     pdf = FeedbackPDF()
     pdf.add_page()
     pdf.student_info(student_name, guide_name)
@@ -204,8 +224,10 @@ def grade_answers(student_text, guide: MarkingGuide):
         sim_score = semantic_match(ideal, student_answer)
         final_score = round((0.5 * kw_score + 0.5 * sim_score) * 100, 2)
 
-        feedback = f"Keywords matched: {', '.join(kw_hits) if kw_hits else 'None'}. "
-        feedback += f"Semantic score: {sim_score*100:.1f}%."
+        feedback = (
+            f"Keywords matched: {', '.join(kw_hits) if kw_hits else 'None'}. "
+            f"Semantic score: {sim_score*100:.1f}%."
+        )
 
         question_scores[f"Question {idx}"] = {
             "answer": student_answer,

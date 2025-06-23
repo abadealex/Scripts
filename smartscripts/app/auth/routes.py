@@ -5,7 +5,9 @@ from smartscripts.app import db
 from smartscripts.app.models import User
 from smartscripts.app.forms import LoginForm, RegisterForm
 
+
 auth = Blueprint('auth', __name__)
+
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():

@@ -1,6 +1,7 @@
 from PIL import Image
 import os
 
+
 def compress_image(input_path, output_path, max_size_kb=4000):
     img = Image.open(input_path)
     quality = 95

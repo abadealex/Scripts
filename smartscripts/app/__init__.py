@@ -15,7 +15,7 @@ from smartscripts.app.teacher.routes import teacher_bp
 from smartscripts.app.student.routes import student_bp
 from smartscripts.config import config_by_name
 
-# ✅ Load environment variables from .env file
+# Load environment variables from .env file
 load_dotenv()
 print("DATABASE_URL used:", os.getenv("DATABASE_URL"))
 
@@ -29,7 +29,7 @@ def create_app(config_name='default'):
         # Initialize Flask app
         app = Flask(__name__, template_folder=template_dir)
 
-        # ✅ Override DB URL if in env
+        # Override DB URL if set in environment
         database_url = os.getenv("DATABASE_URL")
         if database_url:
             app.config['SQLALCHEMY_DATABASE_URI'] = database_url
@@ -43,6 +43,7 @@ def create_app(config_name='default'):
         mail.init_app(app)
         migrate.init_app(app, db)
 
+        # Configure login manager
         login_manager.login_view = "auth.login"
         login_manager.login_message = "Please log in to access this page."
         login_manager.login_message_category = "info"
@@ -57,7 +58,7 @@ def create_app(config_name='default'):
         app.register_blueprint(teacher_bp)
         app.register_blueprint(student_bp)
 
-        # ✅ Create upload folders
+        # Create upload folders
         def create_upload_folders():
             folders = [
                 app.config.get('UPLOAD_FOLDER', 'uploads'),
@@ -71,7 +72,7 @@ def create_app(config_name='default'):
 
         create_upload_folders()
 
-        # ✅ Alembic migration in development
+        # Alembic migration in development environment
         if app.config.get("ENV") == "development":
             alembic_ini_path = os.path.abspath(os.path.join(app.root_path, '..', 'alembic.ini'))
             print("[DEBUG] Alembic ini path:", alembic_ini_path)
@@ -83,7 +84,7 @@ def create_app(config_name='default'):
                 app.logger.error(f"DB migration failed: {e}")
                 traceback.print_exc()
 
-        # ✅ Log to file in production
+        # Log to file in production
         if not app.debug:
             log_file = os.path.join(app.root_path, 'app.log')
             file_handler = logging.FileHandler(log_file)
@@ -94,7 +95,7 @@ def create_app(config_name='default'):
             file_handler.setFormatter(formatter)
             app.logger.addHandler(file_handler)
 
-        # ✅ Register error handlers globally
+        # Register error handlers globally
         register_error_handlers(app)
 
         return app
@@ -105,7 +106,6 @@ def create_app(config_name='default'):
         raise
 
 
-# ✅ Global error handler registration
 def register_error_handlers(app):
     @app.errorhandler(403)
     def forbidden_error(error):
