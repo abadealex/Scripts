@@ -5,6 +5,7 @@ import traceback
 from flask import Flask
 from alembic.config import Config
 from alembic import command
+from dotenv import load_dotenv
 
 from smartscripts.extensions import db, login_manager, mail, migrate
 from smartscripts.app.models import User
@@ -14,14 +15,26 @@ from smartscripts.app.teacher.routes import teacher_bp
 from smartscripts.app.student.routes import student_bp
 from smartscripts.config import config_by_name
 
+# ✅ Load environment variables from .env file and print DATABASE_URL
+load_dotenv()
+print("DATABASE_URL used:", os.getenv("DATABASE_URL"))
+
 
 def create_app(config_name='default'):
     try:
-        # Determine absolute path to the top-level templates folder (two levels up from this file)
+        # Determine the base and template directory
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
         template_dir = os.path.join(base_dir, 'templates')
 
+        # Initialize Flask app
         app = Flask(__name__, template_folder=template_dir)
+
+        # ✅ Override database URL from environment if available
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+
+        # Load the rest of the config
         app.config.from_object(config_by_name[config_name])
 
         # Initialize extensions
@@ -58,16 +71,20 @@ def create_app(config_name='default'):
 
         create_upload_folders()
 
-        # Run Alembic migrations
-        try:
-            alembic_cfg = Config(os.path.join(app.root_path, 'migrations', 'alembic.ini'))
-            command.upgrade(alembic_cfg, 'head')
-            app.logger.info("Database migrated successfully.")
-        except Exception as e:
-            app.logger.error(f"DB migration failed: {e}")
-            traceback.print_exc()
+        # Run Alembic migrations only in development
+        if app.config.get("ENV") == "development":
+            alembic_ini_path = os.path.abspath(os.path.join(app.root_path, '..', 'alembic.ini'))
+            print("[DEBUG] Alembic ini path:", alembic_ini_path)
 
-        # Logging setup for production
+            try:
+                alembic_cfg = Config(alembic_ini_path)
+                command.upgrade(alembic_cfg, 'head')
+                app.logger.info("Database migrated successfully.")
+            except Exception as e:
+                app.logger.error(f"DB migration failed: {e}")
+                traceback.print_exc()
+
+        # Logging to file in production
         if not app.debug:
             log_file = os.path.join(app.root_path, 'app.log')
             file_handler = logging.FileHandler(log_file)

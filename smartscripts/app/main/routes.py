@@ -214,3 +214,10 @@ def not_found(e):
 @main.app_errorhandler(500)
 def server_error(e):
     return render_template('errors/500.html'), 500
+
+
+# --- Testing Routes ---
+
+@main.route('/test-error')
+def test_error():
+    return render_template("errors/500.html")
