@@ -1,4 +1,7 @@
+# --- Standard Library Imports ---
 import os
+
+# --- Flask & Flask-Login Imports ---
 from flask import (
     Blueprint, render_template, request, redirect,
     url_for, flash, current_app, abort
@@ -6,10 +9,13 @@ from flask import (
 from flask_login import (
     login_user, logout_user, login_required, current_user
 )
+
+# --- Werkzeug & SQLAlchemy Imports ---
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy.orm import joinedload
 
+# --- Local Application Imports ---
 from smartscripts.app import db
 from smartscripts.app.models import User, MarkingGuide, StudentSubmission
 from smartscripts.utils.compress_image import compress_image
@@ -17,10 +23,11 @@ from smartscripts.app.forms import (
     TeacherLoginForm, TeacherRegisterForm
 )
 
+# --- Blueprint Setup ---
 teacher_bp = Blueprint('teacher_bp', __name__, url_prefix='/teacher')
 
 
-# Restrict all routes in this blueprint to teachers only, except login/register/static
+# --- Middleware: Restrict Access to Teachers ---
 @teacher_bp.before_request
 def require_teacher_role():
     exempt_routes = ['teacher_bp.login', 'teacher_bp.register', 'static']
@@ -29,8 +36,9 @@ def require_teacher_role():
             abort(403)
 
 
-# --- Auth Routes ---
-
+# ===========================
+#         Auth Routes
+# ===========================
 
 @teacher_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -89,8 +97,9 @@ def logout():
     return redirect(url_for('teacher_bp.login'))
 
 
-# --- Teacher Dashboard ---
-
+# ===========================
+#       Dashboard Route
+# ===========================
 
 @teacher_bp.route('/dashboard')
 @login_required
@@ -121,8 +130,9 @@ def dashboard():
     )
 
 
-# --- Upload Marking Guide ---
-
+# ===========================
+#     Upload Guide Route
+# ===========================
 
 @teacher_bp.route('/upload-guide', methods=['GET', 'POST'])
 @login_required
@@ -139,7 +149,7 @@ def upload_guide():
         file_path = os.path.join(upload_dir, filename)
         file.save(file_path)
 
-        # Compress large images
+        # Compress large images (over 4MB)
         if (
             file_path.lower().endswith(('.jpg', '.jpeg', '.png')) and
             os.path.getsize(file_path) > 4 * 1024 * 1024
@@ -150,6 +160,6 @@ def upload_guide():
             file_path = compressed_path
 
         flash('Marking guide uploaded successfully.', 'success')
-        return redirect(url_for('teacher_bp.upload_guide'))
+        return redirect(url_for('teacher_bp.dashboard'))
 
     return render_template('teacher/upload.html')
