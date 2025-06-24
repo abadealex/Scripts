@@ -9,8 +9,7 @@ import os
 from ..models import MarkingGuide, StudentSubmission
 from smartscripts.app import db
 
-main = Blueprint('main', __name__)
-
+main_bp = Blueprint('main', __name__)
 
 # --- Helper functions ---
 
@@ -45,17 +44,15 @@ def paginate_query(query, page, per_page=10):
     """Helper for pagination."""
     return query.paginate(page=page, per_page=per_page, error_out=False)
 
-
 # --- Routes ---
 
-@main.route('/')
+@main_bp.route('/')
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     return render_template('index.html')
 
-
-@main.route('/dashboard')
+@main_bp.route('/dashboard')
 @login_required
 def dashboard():
     if current_user.role == 'teacher':
@@ -65,8 +62,7 @@ def dashboard():
     else:
         abort(403)
 
-
-@main.route('/teacher/dashboard')
+@main_bp.route('/teacher/dashboard')
 @login_required
 def teacher_dashboard():
     if current_user.role != 'teacher':
@@ -96,8 +92,7 @@ def teacher_dashboard():
         pagination=guides_pagination
     )
 
-
-@main.route('/student/dashboard')
+@main_bp.route('/student/dashboard')
 @login_required
 def student_dashboard():
     if current_user.role != 'student':
@@ -116,8 +111,7 @@ def student_dashboard():
         pagination=submissions_pagination
     )
 
-
-@main.route('/submission/<int:submission_id>')
+@main_bp.route('/submission/<int:submission_id>')
 @login_required
 def view_submission(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
@@ -131,8 +125,7 @@ def view_submission(submission_id):
 
     return render_template('view_submission.html', submission=submission)
 
-
-@main.route('/submission/<int:submission_id>/download/pdf')
+@main_bp.route('/submission/<int:submission_id>/download/pdf')
 @login_required
 def download_pdf(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
@@ -160,8 +153,7 @@ def download_pdf(submission_id):
 
     return send_file(pdf_path, as_attachment=True, download_name=download_name)
 
-
-@main.route('/submission/<int:submission_id>/download/annotated')
+@main_bp.route('/submission/<int:submission_id>/download/annotated')
 @login_required
 def download_annotated(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
@@ -189,46 +181,39 @@ def download_annotated(submission_id):
 
     return send_file(annotated_path, as_attachment=True, download_name=download_name)
 
-
-@main.route('/upload/guide', methods=['GET', 'POST'])
+@main_bp.route('/upload/guide', methods=['GET', 'POST'])
 @login_required
 def upload_guide():
     if current_user.role != 'teacher':
         abort(403)
     return render_template('upload_guide.html')
 
-
-@main.route('/upload/submission', methods=['GET', 'POST'])
+@main_bp.route('/upload/submission', methods=['GET', 'POST'])
 @login_required
 def upload_submission():
     if current_user.role != 'student':
         abort(403)
     return render_template('upload_submission.html')
 
-
-@main.route('/init-db')
+@main_bp.route('/init-db')
 def init_db():
     db.create_all()
     return "✅ Database tables created successfully!"
 
-
 # --- Error handlers ---
 
-@main.app_errorhandler(403)
+@main_bp.app_errorhandler(403)
 def forbidden(e):
     return render_template('errors/403.html'), 403
 
-
-@main.app_errorhandler(404)
+@main_bp.app_errorhandler(404)
 def not_found(e):
     return render_template('errors/404.html'), 404
 
-
-@main.app_errorhandler(500)
+@main_bp.app_errorhandler(500)
 def server_error(e):
     return render_template('errors/500.html'), 500
 
-
-@main.route('/test-error')
+@main_bp.route('/test-error')
 def test_error():
     return render_template("errors/500.html")
