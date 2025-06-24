@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 from smartscripts.extensions import db, login_manager, mail, migrate
 from smartscripts.app.models import User
-from smartscripts.app.auth.routes import auth
+from smartscripts.app.auth import auth_bp
 from smartscripts.app.main.routes import main
 from smartscripts.app.teacher.routes import teacher_bp
 from smartscripts.app.student.routes import student_bp
@@ -63,7 +63,7 @@ def create_app(config_name='default'):
             return User.query.get(int(user_id))
 
         # Register blueprints
-        app.register_blueprint(auth)
+        app.register_blueprint(auth_bp, url_prefix='/auth')
         app.register_blueprint(main)
         app.register_blueprint(teacher_bp)
         app.register_blueprint(student_bp)
