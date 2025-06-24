@@ -27,7 +27,7 @@ def login():
         else:
             flash('Invalid email or password.', 'danger')
 
-    return render_template('login.html', form=form)
+    return render_template('auth/login.html', form=form)
 
 
 @auth.route('/register', methods=['GET', 'POST'])
@@ -60,7 +60,7 @@ def register():
                 for error in errors:
                     flash(f"{field.capitalize()}: {error}", 'danger')
 
-    return render_template('register.html', form=form)
+    return render_template('auth/register.html', form=form)
 
 
 @auth.route('/logout')
