@@ -1,15 +1,15 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+
 from smartscripts.app import db
 from smartscripts.app.models import User
 from smartscripts.app.forms import LoginForm, RegisterForm
 
+from . import auth_bp  # Import the blueprint instance
 
-auth = Blueprint('auth', __name__)
 
-
-@auth.route('/login', methods=['GET', 'POST'])
+@auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
@@ -30,7 +30,7 @@ def login():
     return render_template('auth/login.html', form=form)
 
 
-@auth.route('/register', methods=['GET', 'POST'])
+@auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
@@ -53,17 +53,16 @@ def register():
             db.session.rollback()
             flash('Registration failed due to a server error.', 'danger')
             print(f"[ERROR] Registration DB Commit: {e}")
-    else:
-        if request.method == 'POST':
-            flash('Please correct the errors below.', 'danger')
-            for field, errors in form.errors.items():
-                for error in errors:
-                    flash(f"{field.capitalize()}: {error}", 'danger')
+    elif request.method == 'POST':
+        flash('Please correct the errors below.', 'danger')
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"{field.capitalize()}: {error}", 'danger')
 
     return render_template('auth/register.html', form=form)
 
 
-@auth.route('/logout')
+@auth_bp.route('/logout')
 @login_required
 def logout():
     logout_user()
