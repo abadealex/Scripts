@@ -14,34 +14,26 @@ main_bp = Blueprint('main', __name__)
 # --- Helper functions ---
 
 def check_teacher_access(guide_or_submission):
-    """Raise 403 if current_user is teacher but does not own the resource."""
     if current_user.role != 'teacher':
         raise Forbidden("Access denied: Teacher role required.")
 
     if isinstance(guide_or_submission, MarkingGuide):
         owner_id = guide_or_submission.teacher_id
     elif isinstance(guide_or_submission, StudentSubmission):
-        owner_id = (
-            guide_or_submission.guide.teacher_id
-            if guide_or_submission.guide else None
-        )
+        owner_id = guide_or_submission.guide.teacher_id if guide_or_submission.guide else None
     else:
         owner_id = None
 
     if owner_id != current_user.id:
         raise Forbidden("You do not have permission to access this resource.")
 
-
 def check_student_access(submission):
-    """Raise 403 if current_user is student but does not own the submission."""
     if current_user.role != 'student':
         raise Forbidden("Access denied: Student role required.")
     if submission.student_id != current_user.id:
         raise Forbidden("You do not have permission to access this submission.")
 
-
 def paginate_query(query, page, per_page=10):
-    """Helper for pagination."""
     return query.paginate(page=page, per_page=per_page, error_out=False)
 
 # --- Routes ---
@@ -50,7 +42,7 @@ def paginate_query(query, page, per_page=10):
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
-    return render_template('index.html')
+    return render_template('main/index.html')  # ✅
 
 @main_bp.route('/dashboard')
 @login_required
@@ -69,25 +61,19 @@ def teacher_dashboard():
         abort(403)
 
     page = request.args.get('page', 1, type=int)
-    guides_query = (
-        MarkingGuide.query.filter_by(teacher_id=current_user.id)
-        .order_by(MarkingGuide.created_at.desc())
-    )
+    guides_query = MarkingGuide.query.filter_by(teacher_id=current_user.id).order_by(MarkingGuide.created_at.desc())
     guides_pagination = paginate_query(guides_query, page)
 
     guides_with_submissions = []
     for guide in guides_pagination.items:
-        submissions = (
-            StudentSubmission.query.filter_by(guide_id=guide.id)
-            .order_by(StudentSubmission.timestamp.desc()).all()
-        )
+        submissions = StudentSubmission.query.filter_by(guide_id=guide.id).order_by(StudentSubmission.timestamp.desc()).all()
         guides_with_submissions.append({
             'guide': guide,
             'submissions': submissions
         })
 
     return render_template(
-        'teacher_dashboard.html',
+        'teacher/dashboard.html',  # ✅ moved to teacher/
         guides_with_submissions=guides_with_submissions,
         pagination=guides_pagination
     )
@@ -99,14 +85,11 @@ def student_dashboard():
         abort(403)
 
     page = request.args.get('page', 1, type=int)
-    submissions_query = (
-        StudentSubmission.query.filter_by(student_id=current_user.id)
-        .order_by(StudentSubmission.timestamp.desc())
-    )
+    submissions_query = StudentSubmission.query.filter_by(student_id=current_user.id).order_by(StudentSubmission.timestamp.desc())
     submissions_pagination = paginate_query(submissions_query, page)
 
     return render_template(
-        'student_dashboard.html',
+        'student/dashboard.html',  # ✅ moved to student/
         submissions=submissions_pagination.items,
         pagination=submissions_pagination
     )
@@ -123,7 +106,7 @@ def view_submission(submission_id):
     else:
         abort(403)
 
-    return render_template('view_submission.html', submission=submission)
+    return render_template('main/view_result.html', submission=submission)  # ✅ renamed from view_submission
 
 @main_bp.route('/submission/<int:submission_id>/download/pdf')
 @login_required
@@ -186,21 +169,21 @@ def download_annotated(submission_id):
 def upload_guide():
     if current_user.role != 'teacher':
         abort(403)
-    return render_template('upload_guide.html')
+    return render_template('teacher/upload.html')  # ✅ moved to teacher/
 
 @main_bp.route('/upload/submission', methods=['GET', 'POST'])
 @login_required
 def upload_submission():
     if current_user.role != 'student':
         abort(403)
-    return render_template('upload_submission.html')
+    return render_template('student/upload.html')  # ✅ moved to student/
 
 @main_bp.route('/init-db')
 def init_db():
     db.create_all()
     return "✅ Database tables created successfully!"
 
-# --- Error handlers ---
+# --- Error Handlers ---
 
 @main_bp.app_errorhandler(403)
 def forbidden(e):

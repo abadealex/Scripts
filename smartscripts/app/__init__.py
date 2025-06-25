@@ -12,8 +12,8 @@ from smartscripts.extensions import db, login_manager, mail, migrate
 from smartscripts.app.models import User
 from smartscripts.app.auth import auth_bp
 from smartscripts.app.main import main_bp
-from smartscripts.app.teacher import teacher_bp
-from smartscripts.app.student import student_bp
+from smartscripts.app.teacher import teacher  # updated import (no _bp)
+from smartscripts.app.student import student  # updated import (no _bp)
 from smartscripts.config import config_by_name
 
 # Load environment variables from .env file
@@ -23,26 +23,18 @@ print("DATABASE_URL used:", os.getenv("DATABASE_URL"))
 
 def create_app(config_name='default'):
     try:
-        # Base directory of this file (app package)
         base_dir = os.path.abspath(os.path.dirname(__file__))
-
-        # Define paths for templates and static folders inside app/
         template_dir = os.path.join(base_dir, 'templates')
         static_dir = os.path.join(base_dir, 'static')
 
-        # Initialize Flask app
-        app = Flask(
-            __name__,
-            template_folder=template_dir,
-            static_folder=static_dir
-        )
+        app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
-        # Override DB URL from environment variable if set
+        # Override DB URL from env variable if present
         database_url = os.getenv("DATABASE_URL")
         if database_url:
             app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 
-        # Load other configuration from your config module
+        # Load config from config.py
         app.config.from_object(config_by_name[config_name])
 
         # Initialize extensions
@@ -51,7 +43,7 @@ def create_app(config_name='default'):
         mail.init_app(app)
         migrate.init_app(app, db)
 
-        # Login manager setup
+        # Login manager settings
         login_manager.login_view = "auth.login"
         login_manager.login_message = "Please log in to access this page."
         login_manager.login_message_category = "info"
@@ -60,13 +52,13 @@ def create_app(config_name='default'):
         def load_user(user_id):
             return User.query.get(int(user_id))
 
-        # Register blueprints with proper url_prefix
+        # Register blueprints with correct url_prefixes
         app.register_blueprint(auth_bp, url_prefix='/auth')
-        app.register_blueprint(main_bp)
-        app.register_blueprint(teacher_bp, url_prefix='/teacher')
-        app.register_blueprint(student_bp, url_prefix='/student')
+        app.register_blueprint(main_bp)  # No prefix, default route
+        app.register_blueprint(teacher, url_prefix='/teacher')
+        app.register_blueprint(student, url_prefix='/student')
 
-        # Create upload folders if they don't exist
+        # Create upload folders if missing
         def create_upload_folders():
             folders = [
                 app.config.get('UPLOAD_FOLDER', 'uploads'),
@@ -80,7 +72,7 @@ def create_app(config_name='default'):
 
         create_upload_folders()
 
-        # Alembic automatic migration in development environment
+        # Auto-migrate DB on dev environment using Alembic
         if app.config.get("ENV") == "development":
             alembic_ini_path = os.path.abspath(os.path.join(app.root_path, '..', 'alembic.ini'))
             print("[DEBUG] Alembic ini path:", alembic_ini_path)
@@ -92,7 +84,7 @@ def create_app(config_name='default'):
                 app.logger.error(f"DB migration failed: {e}")
                 traceback.print_exc()
 
-        # Setup logging to file if not in debug mode
+        # Setup file logging if not in debug mode
         if not app.debug:
             log_file = os.path.join(app.root_path, 'app.log')
             file_handler = logging.FileHandler(log_file)
@@ -103,10 +95,10 @@ def create_app(config_name='default'):
             file_handler.setFormatter(formatter)
             app.logger.addHandler(file_handler)
 
-        # Register error handlers
+        # Register custom error handlers
         register_error_handlers(app)
 
-        # Inject current year in all templates
+        # Inject current year into all templates
         @app.context_processor
         def inject_current_year():
             return {'current_year': datetime.utcnow().year}
