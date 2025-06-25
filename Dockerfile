@@ -25,5 +25,5 @@ ENV PYTHONUNBUFFERED=1
 # Expose Railway port
 EXPOSE 8000
 
-# Start app
-CMD ["gunicorn", "-b", "0.0.0.0:$PORT", "wsgi:app"]
+# Start app with dynamic port binding using shell to expand $PORT
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT} wsgi:app"]
