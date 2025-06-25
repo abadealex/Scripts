@@ -26,4 +26,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Start app with dynamic port binding using shell to expand $PORT
-CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT} wsgi:app"]
+CMD ["sh", "-c", "gunicorn -w 1 -t 120 -b 0.0.0.0:${PORT} wsgi:app"]
