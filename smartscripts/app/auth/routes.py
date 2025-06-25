@@ -6,7 +6,7 @@ from smartscripts.app import db
 from smartscripts.app.models import User
 from smartscripts.app.forms import LoginForm, RegisterForm
 
-from . import auth_bp  # Import the blueprint instance
+from . import auth_bp  # Blueprint instance
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -20,6 +20,7 @@ def login():
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
             flash('Logged in successfully.', 'success')
+            # Redirect based on user role
             if user.role == 'teacher':
                 return redirect(url_for('main.teacher_dashboard'))
             else:

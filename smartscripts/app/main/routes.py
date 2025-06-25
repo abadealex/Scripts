@@ -42,7 +42,7 @@ def paginate_query(query, page, per_page=10):
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
-    return render_template('main/index.html')  # ✅
+    return render_template('main/index.html')
 
 @main_bp.route('/dashboard')
 @login_required
@@ -73,7 +73,7 @@ def teacher_dashboard():
         })
 
     return render_template(
-        'teacher/dashboard.html',  # ✅ moved to teacher/
+        'teacher/dashboard.html',
         guides_with_submissions=guides_with_submissions,
         pagination=guides_pagination
     )
@@ -89,7 +89,7 @@ def student_dashboard():
     submissions_pagination = paginate_query(submissions_query, page)
 
     return render_template(
-        'student/dashboard.html',  # ✅ moved to student/
+        'student/dashboard.html',
         submissions=submissions_pagination.items,
         pagination=submissions_pagination
     )
@@ -106,7 +106,7 @@ def view_submission(submission_id):
     else:
         abort(403)
 
-    return render_template('main/view_result.html', submission=submission)  # ✅ renamed from view_submission
+    return render_template('main/view_result.html', submission=submission)
 
 @main_bp.route('/submission/<int:submission_id>/download/pdf')
 @login_required
@@ -164,19 +164,21 @@ def download_annotated(submission_id):
 
     return send_file(annotated_path, as_attachment=True, download_name=download_name)
 
+# Redirect upload routes to proper blueprints
+
 @main_bp.route('/upload/guide', methods=['GET', 'POST'])
 @login_required
 def upload_guide():
     if current_user.role != 'teacher':
         abort(403)
-    return render_template('teacher/upload.html')  # ✅ moved to teacher/
+    return redirect(url_for('teacher.upload_guide'))
 
 @main_bp.route('/upload/submission', methods=['GET', 'POST'])
 @login_required
 def upload_submission():
     if current_user.role != 'student':
         abort(403)
-    return render_template('student/upload.html')  # ✅ moved to student/
+    return redirect(url_for('student.student_upload'))
 
 @main_bp.route('/init-db')
 def init_db():

@@ -25,13 +25,14 @@ def student_upload():
 
     form = StudentUploadForm()
 
-    # Load guide choices dynamically
+    # Load marking guide choices dynamically
     form.guide_id.choices = [
         (g.id, g.title) for g in MarkingGuide.query.order_by(MarkingGuide.created_at.desc()).all()
     ]
 
     if form.validate_on_submit():
         file = form.file.data
+
         if not file or not file.filename.strip():
             flash('No file selected.', 'danger')
             return redirect(request.url)
@@ -57,13 +58,13 @@ def student_upload():
         filepath = os.path.join(upload_dir, unique_name)
         file.save(filepath)
 
-        # Compress if image and too large (>4MB)
+        # Compress if image and size > 4MB
         if filepath.lower().endswith(('.jpg', '.jpeg', '.png')) and os.path.getsize(filepath) > 4 * 1024 * 1024:
             compressed_path = os.path.join(upload_dir, f"compressed_{unique_name}")
             compress_image(filepath, compressed_path)
             os.remove(filepath)
             filepath = compressed_path
-            unique_name = os.path.basename(compressed_path)  # update to compressed filename
+            unique_name = os.path.basename(compressed_path)  # Update to compressed filename
 
         current_app.logger.info(f"Student {current_user.email} uploaded file {filename}")
 
@@ -79,7 +80,7 @@ def student_upload():
         annotated_file = result.get('annotated_file')
         pdf_report = result.get('pdf_report')
 
-        # Store relative paths in DB
+        # Store relative paths in DB for portability
         if annotated_file and annotated_file.startswith(upload_dir):
             annotated_file = os.path.relpath(annotated_file, upload_dir)
         if pdf_report and pdf_report.startswith(upload_dir):

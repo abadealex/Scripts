@@ -12,8 +12,8 @@ from smartscripts.extensions import db, login_manager, mail, migrate
 from smartscripts.app.models import User
 from smartscripts.app.auth import auth_bp
 from smartscripts.app.main import main_bp
-from smartscripts.app.teacher import teacher  # updated import (no _bp)
-from smartscripts.app.student import student  # updated import (no _bp)
+from smartscripts.app.teacher import teacher_bp
+from smartscripts.app.student import student_bp
 from smartscripts.config import config_by_name
 
 # Load environment variables from .env file
@@ -55,8 +55,8 @@ def create_app(config_name='default'):
         # Register blueprints with correct url_prefixes
         app.register_blueprint(auth_bp, url_prefix='/auth')
         app.register_blueprint(main_bp)  # No prefix, default route
-        app.register_blueprint(teacher, url_prefix='/teacher')
-        app.register_blueprint(student, url_prefix='/student')
+        app.register_blueprint(teacher_bp, url_prefix='/teacher')
+        app.register_blueprint(student_bp, url_prefix='/student')
 
         # Create upload folders if missing
         def create_upload_folders():
