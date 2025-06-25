@@ -202,3 +202,8 @@ def server_error(e):
 @main_bp.route('/test-error')
 def test_error():
     return render_template("errors/500.html")
+
+# --- Temporary test route to check blueprint registration ---
+@main_bp.route('/test')
+def test():
+    return "Main blueprint is working!"
