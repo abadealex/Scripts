@@ -48,3 +48,10 @@ class TeacherRegisterForm(FlaskForm):
 class StudentUploadForm(FlaskForm):
     file = FileField('Upload File', validators=[DataRequired()])
     submit = SubmitField('Submit')
+
+
+# New form for marking guide upload
+
+class MarkingGuideUploadForm(FlaskForm):
+    file = FileField('Upload Marking Guide', validators=[DataRequired()])
+    submit = SubmitField('Upload Marking Guide')
