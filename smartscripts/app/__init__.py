@@ -23,19 +23,19 @@ print("DATABASE_URL used:", os.getenv("DATABASE_URL"))
 
 def create_app(config_name='default'):
     try:
-        base_dir = os.path.abspath(os.path.dirname(__file__))
-        template_dir = os.path.join(base_dir, 'templates')
-        static_dir = os.path.join(base_dir, 'static')
+        base_dir = os.path.abspath(os.path.dirname(__file__))  # smartscripts/app
+        template_dir = os.path.join(base_dir, 'templates')     # smartscripts/app/templates
+        static_dir = os.path.join(base_dir, 'static')          # smartscripts/app/static
 
         app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
+
+        # Load base config from config.py
+        app.config.from_object(config_by_name[config_name])
 
         # Override DB URL from env variable if present
         database_url = os.getenv("DATABASE_URL")
         if database_url:
             app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-
-        # Load config from config.py
-        app.config.from_object(config_by_name[config_name])
 
         # Initialize extensions
         db.init_app(app)
@@ -52,17 +52,17 @@ def create_app(config_name='default'):
         def load_user(user_id):
             return User.query.get(int(user_id))
 
-        # Register blueprints with correct url_prefixes
+        # Register blueprints
         app.register_blueprint(auth_bp, url_prefix='/auth')
-        app.register_blueprint(main_bp)  # No prefix, default route
+        app.register_blueprint(main_bp)
         app.register_blueprint(teacher_bp, url_prefix='/teacher')
         app.register_blueprint(student_bp, url_prefix='/student')
 
-        # Create upload folders if missing
+        # Create upload folders if they don't exist
         def create_upload_folders():
             folders = [
-                app.config.get('UPLOAD_FOLDER', 'uploads'),
-                app.config.get('UPLOAD_FOLDER_GUIDES', 'uploads/guides')
+                app.config.get('UPLOAD_FOLDER', os.path.join(base_dir, '..', 'uploads')),
+                app.config.get('UPLOAD_FOLDER_GUIDES', os.path.join(base_dir, '..', 'uploads', 'guides'))
             ]
             for folder in folders:
                 try:
@@ -72,9 +72,9 @@ def create_app(config_name='default'):
 
         create_upload_folders()
 
-        # Auto-migrate DB on dev environment using Alembic
+        # Auto-run Alembic migrations in development
         if app.config.get("ENV") == "development":
-            alembic_ini_path = os.path.abspath(os.path.join(app.root_path, '..', 'alembic.ini'))
+            alembic_ini_path = os.path.abspath(os.path.join(app.root_path, '..', '..', 'alembic.ini'))
             print("[DEBUG] Alembic ini path:", alembic_ini_path)
             try:
                 alembic_cfg = Config(alembic_ini_path)
@@ -84,8 +84,8 @@ def create_app(config_name='default'):
                 app.logger.error(f"DB migration failed: {e}")
                 traceback.print_exc()
 
-        # Setup file logging if not in debug mode
-        if not app.debug:
+        # Setup file logging (optional in prod)
+        if not app.debug and not app.testing:
             log_file = os.path.join(app.root_path, 'app.log')
             file_handler = logging.FileHandler(log_file)
             file_handler.setLevel(logging.INFO)
@@ -95,10 +95,10 @@ def create_app(config_name='default'):
             file_handler.setFormatter(formatter)
             app.logger.addHandler(file_handler)
 
-        # Register custom error handlers
+        # Error handlers
         register_error_handlers(app)
 
-        # Inject current year into all templates
+        # Inject current year into templates
         @app.context_processor
         def inject_current_year():
             return {'current_year': datetime.utcnow().year}
