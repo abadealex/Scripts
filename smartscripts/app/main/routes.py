@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, render_template, abort, redirect, url_for, flash,
+    render_template, abort, redirect, url_for, flash,
     send_file, request, current_app
 )
 from flask_login import login_required, current_user
@@ -8,8 +8,7 @@ import os
 
 from ..models import MarkingGuide, StudentSubmission
 from smartscripts.app import db
-
-main_bp = Blueprint('main', __name__)
+from . import main_bp  # <-- Import main_bp from __init__.py instead of redefining
 
 # --- Helper functions ---
 
