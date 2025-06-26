@@ -1,7 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, BooleanField, FileField
+from wtforms import StringField, PasswordField, SubmitField, BooleanField, FileField, SelectField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
-
 
 # -----------------------
 # Authentication Forms
@@ -15,16 +14,16 @@ class LoginForm(FlaskForm):
 
 
 class RegisterForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=2, max=30)])
+    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=25)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[
         DataRequired(),
         Length(min=6),
-        EqualTo('confirm', message='Passwords must match')
+        EqualTo('confirm_password', message='Passwords must match')
     ])
-    confirm = PasswordField('Confirm Password')
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired()])
+    role = SelectField('Role', choices=[('student', 'Student'), ('teacher', 'Teacher')], validators=[DataRequired()])
     submit = SubmitField('Register')
-
 
 # -----------------------
 # Teacher Forms
@@ -48,7 +47,6 @@ class TeacherRegisterForm(FlaskForm):
     confirm = PasswordField('Confirm Password')
     submit = SubmitField('Teacher Register')
 
-
 # -----------------------
 # Student Upload Form
 # -----------------------
@@ -56,7 +54,6 @@ class TeacherRegisterForm(FlaskForm):
 class StudentUploadForm(FlaskForm):
     file = FileField('Upload File', validators=[DataRequired()])
     submit = SubmitField('Submit')
-
 
 # -----------------------
 # Marking Guide Upload Form
