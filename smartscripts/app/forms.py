@@ -1,9 +1,11 @@
-# smartscripts/app/forms.py
-
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, FileField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
 
+
+# -----------------------
+# Authentication Forms
+# -----------------------
 
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
@@ -13,6 +15,7 @@ class LoginForm(FlaskForm):
 
 
 class RegisterForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=2, max=30)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[
         DataRequired(),
@@ -23,7 +26,9 @@ class RegisterForm(FlaskForm):
     submit = SubmitField('Register')
 
 
-# Teacher specific forms
+# -----------------------
+# Teacher Forms
+# -----------------------
 
 class TeacherLoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
@@ -33,6 +38,7 @@ class TeacherLoginForm(FlaskForm):
 
 
 class TeacherRegisterForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=2, max=30)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[
         DataRequired(),
@@ -43,14 +49,18 @@ class TeacherRegisterForm(FlaskForm):
     submit = SubmitField('Teacher Register')
 
 
-# Student specific form for file upload
+# -----------------------
+# Student Upload Form
+# -----------------------
 
 class StudentUploadForm(FlaskForm):
     file = FileField('Upload File', validators=[DataRequired()])
     submit = SubmitField('Submit')
 
 
-# New form for marking guide upload
+# -----------------------
+# Marking Guide Upload Form
+# -----------------------
 
 class MarkingGuideUploadForm(FlaskForm):
     file = FileField('Upload Marking Guide', validators=[DataRequired()])
