@@ -12,7 +12,8 @@ from . import auth_bp  # Blueprint instance
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        # Redirect to homepage (not dashboard) if already logged in
+        return redirect(url_for('main_bp.index'))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -22,9 +23,9 @@ def login():
             flash('Logged in successfully.', 'success')
             # Redirect based on user role
             if user.role == 'teacher':
-                return redirect(url_for('main.teacher_dashboard'))
+                return redirect(url_for('main_bp.teacher_dashboard'))
             else:
-                return redirect(url_for('main.student_dashboard'))
+                return redirect(url_for('main_bp.student_dashboard'))
         else:
             flash('Invalid email or password.', 'danger')
 
@@ -34,7 +35,7 @@ def login():
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main_bp.index'))
 
     form = RegisterForm()
     if form.validate_on_submit():
@@ -49,7 +50,7 @@ def register():
             db.session.add(new_user)
             db.session.commit()
             flash('Registration successful. You can now log in.', 'success')
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('auth_bp.login'))
         except Exception as e:
             db.session.rollback()
             flash('Registration failed due to a server error.', 'danger')
@@ -68,4 +69,4 @@ def register():
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('auth.login'))
+    return redirect(url_for('auth_bp.login'))
