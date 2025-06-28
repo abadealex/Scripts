@@ -19,16 +19,19 @@
     <form method="POST" enctype="multipart/form-data">
         {{ form.hidden_tag() }}
 
+        <!-- Title Field -->
         <div class="mb-3">
             {{ form.title.label(class="form-label") }}
             {{ form.title(class="form-control") }}
         </div>
 
+        <!-- File Upload Field -->
         <div class="mb-3">
             {{ form.file.label(class="form-label") }}
             {{ form.file(class="form-control") }}
         </div>
 
+        <!-- Answers JSON TextArea -->
         <div class="mb-3">
             {{ form.answers_json.label(class="form-label") }}
             {{ form.answers_json(class="form-control", rows=8) }}
@@ -37,6 +40,7 @@
             </small>
         </div>
 
+        <!-- Submit Button -->
         <button type="submit" class="btn btn-primary">Upload</button>
     </form>
 </div>

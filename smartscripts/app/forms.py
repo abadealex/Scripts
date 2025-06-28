@@ -1,5 +1,8 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, BooleanField, FileField, SelectField
+from wtforms import (
+    StringField, PasswordField, SubmitField, BooleanField,
+    FileField, SelectField, TextAreaField
+)
 from wtforms.validators import DataRequired, Email, EqualTo, Length
 
 # -----------------------
@@ -56,9 +59,11 @@ class StudentUploadForm(FlaskForm):
     submit = SubmitField('Submit')
 
 # -----------------------
-# Marking Guide Upload Form
+# Marking Guide Upload Form (UPDATED)
 # -----------------------
 
 class MarkingGuideUploadForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired()])
     file = FileField('Upload Marking Guide', validators=[DataRequired()])
+    answers_json = TextAreaField('Ideal Answers JSON', validators=[DataRequired()])
     submit = SubmitField('Upload Marking Guide')
