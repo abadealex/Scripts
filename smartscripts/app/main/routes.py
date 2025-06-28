@@ -1,126 +1,151 @@
 import os
-import uuid
-from datetime import datetime
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, flash, current_app, abort
+    url_for, flash, current_app, abort, send_from_directory
 )
 from flask_login import login_required, current_user
-from werkzeug.utils import secure_filename
 
 from smartscripts.app import db
-from smartscripts.app.forms import StudentUploadForm
 from smartscripts.app.models import MarkingGuide, StudentSubmission
-from smartscripts.app.utils import allowed_file, grade_submission
-from smartscripts.utils.compress_image import compress_image
 
-student_bp = Blueprint('student_bp', __name__, url_prefix='/student')
+main_bp = Blueprint('main_bp', __name__)
 
 
-@student_bp.before_request
-@login_required
-def require_student_role():
-    if current_user.role != 'student':
+# Helpers for role checks
+def check_teacher_access():
+    if not current_user.is_authenticated or current_user.role != 'teacher':
         abort(403)
 
 
-@student_bp.route('/upload', methods=['GET', 'POST'])
-def student_upload():
-    form = StudentUploadForm()
-
-    # Populate marking guide dropdown dynamically
-    form.guide_id.choices = [
-        (g.id, g.title) for g in MarkingGuide.query.order_by(MarkingGuide.created_at.desc()).all()
-    ]
-
-    if form.validate_on_submit():
-        file = form.file.data
-
-        if not file or not file.filename.strip():
-            flash('No file selected.', 'danger')
-            return redirect(request.url)
-
-        if not allowed_file(file.filename):
-            flash('Invalid file type. Only JPG, JPEG, PNG, and PDF are allowed.', 'danger')
-            return redirect(request.url)
-
-        file.seek(0, os.SEEK_END)
-        file_length = file.tell()
-        file.seek(0)
-
-        max_mb = current_app.config.get('MAX_FILE_SIZE_MB', 10)
-        if file_length > max_mb * 1024 * 1024:
-            flash(f'File exceeds the {max_mb}MB limit.', 'danger')
-            return redirect(request.url)
-
-        filename = secure_filename(file.filename)
-        unique_name = f"{uuid.uuid4().hex}_{filename}"
-        upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-        os.makedirs(upload_dir, exist_ok=True)
-
-        filepath = os.path.join(upload_dir, unique_name)
-        file.save(filepath)
-
-        # Compress large images (>4MB)
-        if filepath.lower().endswith(('.jpg', '.jpeg', '.png')) and os.path.getsize(filepath) > 4 * 1024 * 1024:
-            compressed_path = os.path.join(upload_dir, f"compressed_{unique_name}")
-            compress_image(filepath, compressed_path)
-            os.remove(filepath)
-            filepath = compressed_path
-            unique_name = os.path.basename(compressed_path)
-
-        current_app.logger.info(f"Student {current_user.email} uploaded file {filename}")
-
-        guide = MarkingGuide.query.get_or_404(form.guide_id.data)
-
-        try:
-            result = grade_submission(filepath, guide, current_user.email, output_dir=upload_dir)
-        except Exception as e:
-            current_app.logger.error(f"Grading error: {str(e)}")
-            flash(f"Grading failed: {str(e)}", "danger")
-            return redirect(request.url)
-
-        annotated_file = result.get('annotated_file')
-        pdf_report = result.get('pdf_report')
-
-        # Store relative paths for files
-        if annotated_file and annotated_file.startswith(upload_dir):
-            annotated_file = os.path.relpath(annotated_file, upload_dir)
-        if pdf_report and pdf_report.startswith(upload_dir):
-            pdf_report = os.path.relpath(pdf_report, upload_dir)
-
-        submission = StudentSubmission(
-            student_id=current_user.id,
-            guide_id=guide.id,
-            answer_filename=unique_name,
-            graded_image=annotated_file,
-            report_filename=pdf_report,
-            grade=result.get('total_score'),
-            feedback=result.get('feedback', ''),
-            timestamp=datetime.utcnow()
-        )
-
-        try:
-            db.session.add(submission)
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"DB Commit failed: {e}")
-            flash("Failed to save submission. Please try again.", "danger")
-            return redirect(request.url)
-
-        flash('Submission graded and uploaded successfully!', 'success')
-        return redirect(url_for('student_bp.view_single_result', submission_id=submission.id))
-
-    return render_template('student/upload.html', form=form)
+def check_student_access():
+    if not current_user.is_authenticated or current_user.role != 'student':
+        abort(403)
 
 
-@student_bp.route('/submission/<int:submission_id>')
-def view_single_result(submission_id):
+@main_bp.route('/')
+def index():
+    return render_template('main/index.html')
+
+
+@main_bp.route('/dashboard')
+@login_required
+def dashboard():
+    # Redirect to teacher or student dashboard based on role
+    if current_user.role == 'teacher':
+        return redirect(url_for('teacher_bp.dashboard'))
+    elif current_user.role == 'student':
+        return redirect(url_for('student_bp.student_upload'))
+    else:
+        abort(403)
+
+
+@main_bp.route('/upload/guide')
+@login_required
+def upload_guide_redirect():
+    check_teacher_access()
+    return redirect(url_for('teacher_bp.upload_guide'))
+
+
+@main_bp.route('/upload/submission')
+@login_required
+def upload_submission_redirect():
+    check_student_access()
+    return redirect(url_for('student_bp.student_upload'))
+
+
+@main_bp.route('/submissions')
+@login_required
+def list_submissions():
+    # List all submissions for current user with pagination
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if current_user.role == 'teacher':
+        submissions = StudentSubmission.query.order_by(StudentSubmission.timestamp.desc()).paginate(page, per_page, error_out=False)
+    elif current_user.role == 'student':
+        submissions = StudentSubmission.query.filter_by(student_id=current_user.id).order_by(StudentSubmission.timestamp.desc()).paginate(page, per_page, error_out=False)
+    else:
+        abort(403)
+
+    return render_template('main/submissions.html', submissions=submissions)
+
+
+@main_bp.route('/submission/<int:submission_id>')
+@login_required
+def view_submission(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
 
-    # Only allow owner or teacher to view
+    # Only student owner or teacher can view
     if submission.student_id != current_user.id and current_user.role != 'teacher':
         abort(403)
 
-    return render_template('student/view_result.html', submission=submission)
+    return render_template('main/view_submission.html', submission=submission)
+
+
+@main_bp.route('/download/report/<int:submission_id>')
+@login_required
+def download_report(submission_id):
+    submission = StudentSubmission.query.get_or_404(submission_id)
+    if submission.student_id != current_user.id and current_user.role != 'teacher':
+        abort(403)
+
+    if not submission.report_filename:
+        flash('No report available for download.', 'warning')
+        return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
+
+    upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+    try:
+        return send_from_directory(directory=upload_dir, filename=submission.report_filename, as_attachment=True)
+    except FileNotFoundError:
+        flash('Report file not found.', 'danger')
+        return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
+
+
+@main_bp.route('/download/annotated/<int:submission_id>')
+@login_required
+def download_annotated(submission_id):
+    submission = StudentSubmission.query.get_or_404(submission_id)
+    if submission.student_id != current_user.id and current_user.role != 'teacher':
+        abort(403)
+
+    if not submission.graded_image:
+        flash('No annotated image available for download.', 'warning')
+        return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
+
+    upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+    try:
+        return send_from_directory(directory=upload_dir, filename=submission.graded_image, as_attachment=True)
+    except FileNotFoundError:
+        flash('Annotated file not found.', 'danger')
+        return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
+
+
+# Error handlers
+@main_bp.app_errorhandler(403)
+def forbidden(error):
+    return render_template('errors/403.html'), 403
+
+
+@main_bp.app_errorhandler(404)
+def not_found(error):
+    return render_template('errors/404.html'), 404
+
+
+@main_bp.app_errorhandler(500)
+def internal_error(error):
+    return render_template('errors/500.html'), 500
+
+
+# Optional: Test route to confirm blueprint works
+@main_bp.route('/test')
+def test():
+    return "Main blueprint is working!"
+
+
+# Optional: Route to initialize/reset database (use with caution, secure in production)
+@main_bp.route('/init-db')
+def init_db():
+    from smartscripts.app import db
+    db.drop_all()
+    db.create_all()
+    return "Database initialized."

@@ -14,19 +14,21 @@ from smartscripts.app.models import MarkingGuide, StudentSubmission
 from smartscripts.app.utils import allowed_file, grade_submission
 from smartscripts.utils.compress_image import compress_image
 
-# This name must match what you're importing in __init__.py
-student_bp = Blueprint('student', __name__, url_prefix='/student')
+student_bp = Blueprint('student_bp', __name__, url_prefix='/student')
 
 
-@student_bp.route('/upload', methods=['GET', 'POST'])
+@student_bp.before_request
 @login_required
-def student_upload():
+def require_student_role():
     if current_user.role != 'student':
         abort(403)
 
+
+@student_bp.route('/upload', methods=['GET', 'POST'])
+def student_upload():
     form = StudentUploadForm()
 
-    # Dynamically load guide options
+    # Populate marking guide dropdown dynamically
     form.guide_id.choices = [
         (g.id, g.title) for g in MarkingGuide.query.order_by(MarkingGuide.created_at.desc()).all()
     ]
@@ -42,6 +44,7 @@ def student_upload():
             flash('Invalid file type. Only JPG, JPEG, PNG, and PDF are allowed.', 'danger')
             return redirect(request.url)
 
+        # Check file size
         file.seek(0, os.SEEK_END)
         file_length = file.tell()
         file.seek(0)
@@ -51,15 +54,17 @@ def student_upload():
             flash(f'File exceeds the {max_mb}MB limit.', 'danger')
             return redirect(request.url)
 
+        # Secure and unique filename
         filename = secure_filename(file.filename)
         unique_name = f"{uuid.uuid4().hex}_{filename}"
+
         upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
         os.makedirs(upload_dir, exist_ok=True)
 
         filepath = os.path.join(upload_dir, unique_name)
         file.save(filepath)
 
-        # Compress if image and large
+        # Compress large images (>4MB)
         if filepath.lower().endswith(('.jpg', '.jpeg', '.png')) and os.path.getsize(filepath) > 4 * 1024 * 1024:
             compressed_path = os.path.join(upload_dir, f"compressed_{unique_name}")
             compress_image(filepath, compressed_path)
@@ -81,7 +86,7 @@ def student_upload():
         annotated_file = result.get('annotated_file')
         pdf_report = result.get('pdf_report')
 
-        # Store relative paths
+        # Store relative paths for files
         if annotated_file and annotated_file.startswith(upload_dir):
             annotated_file = os.path.relpath(annotated_file, upload_dir)
         if pdf_report and pdf_report.startswith(upload_dir):
@@ -108,15 +113,18 @@ def student_upload():
             return redirect(request.url)
 
         flash('Submission graded and uploaded successfully!', 'success')
-        return redirect(url_for('student.view_single_result', submission_id=submission.id))
+        return redirect(url_for('student_bp.view_single_result', submission_id=submission.id))
 
     return render_template('student/upload.html', form=form)
 
 
-@student_bp.route('/submission/<int:submission_id>')
 @login_required
+@student_bp.route('/submission/<int:submission_id>')
 def view_single_result(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
+
+    # Only allow owner or teacher to view
     if submission.student_id != current_user.id and current_user.role != 'teacher':
         abort(403)
+
     return render_template('student/view_result.html', submission=submission)
