@@ -16,6 +16,7 @@ from smartscripts.app.teacher import teacher_bp
 from smartscripts.app.student import student_bp
 from smartscripts.config import config_by_name
 
+
 # Load environment variables
 load_dotenv()
 print("DATABASE_URL used:", os.getenv("DATABASE_URL"))
@@ -23,10 +24,12 @@ print("DATABASE_URL used:", os.getenv("DATABASE_URL"))
 
 def create_app(config_name='default'):
     try:
+        # Paths
         base_dir = os.path.abspath(os.path.dirname(__file__))
         template_dir = os.path.join(base_dir, 'templates')
         static_dir = os.path.join(base_dir, 'static')
 
+        # Flask App Setup
         app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
         app.config.from_object(config_by_name[config_name])
 
@@ -49,7 +52,7 @@ def create_app(config_name='default'):
         def load_user(user_id):
             return User.query.get(int(user_id))
 
-        # Register Blueprints (assuming url_prefix is set inside each blueprint)
+        # Register Blueprints
         app.register_blueprint(auth_bp)
         app.register_blueprint(main_bp)
         app.register_blueprint(teacher_bp)
@@ -58,7 +61,7 @@ def create_app(config_name='default'):
         # Create necessary folders
         create_upload_folders(app, base_dir)
 
-        # Run Alembic migrations in dev mode
+        # Run Alembic migrations in development
         if app.config.get("ENV") == "development":
             run_alembic_migrations(app)
 
@@ -66,16 +69,13 @@ def create_app(config_name='default'):
         if not app.debug and not app.testing:
             setup_file_logging(app)
 
+        # Register error handlers
         register_error_handlers(app)
 
+        # Inject global variables
         @app.context_processor
         def inject_current_year():
             return {'current_year': datetime.utcnow().year}
-
-        # <---- ADD THIS SIMPLE ROUTE TO FIX 404 AT "/" ---->
-        @app.route("/")
-        def home():
-            return "Welcome to SmartScripts running on Render!"
 
         return app
 
