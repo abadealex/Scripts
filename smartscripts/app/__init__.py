@@ -72,6 +72,11 @@ def create_app(config_name='default'):
         def inject_current_year():
             return {'current_year': datetime.utcnow().year}
 
+        # <---- ADD THIS SIMPLE ROUTE TO FIX 404 AT "/" ---->
+        @app.route("/")
+        def home():
+            return "Welcome to SmartScripts running on Render!"
+
         return app
 
     except Exception:
