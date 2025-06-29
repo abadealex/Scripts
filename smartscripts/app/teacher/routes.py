@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import datetime
 from flask import (
     Blueprint, render_template, request, redirect,
     url_for, flash, current_app, abort
@@ -11,18 +12,22 @@ from sqlalchemy.orm import joinedload
 
 from smartscripts.app import db
 from smartscripts.app.models import User, MarkingGuide, StudentSubmission
-from smartscripts.utils.compress_image import compress_image
 from smartscripts.app.forms import TeacherLoginForm, TeacherRegisterForm, MarkingGuideUploadForm
+from smartscripts.utils.compress_image import compress_image
+from smartscripts.utils.utils import check_teacher_access  # ✅ Import added
 
 teacher_bp = Blueprint('teacher_bp', __name__, url_prefix='/teacher')
 
 
 @teacher_bp.before_request
 def require_teacher_role():
+    if request.endpoint is None or not request.endpoint.startswith('teacher_bp.'):
+        return
     exempt_routes = ['teacher_bp.login', 'teacher_bp.register', 'static']
     if request.endpoint not in exempt_routes:
         if not current_user.is_authenticated or current_user.role != 'teacher':
             abort(403)
+        check_teacher_access()  # ✅ Optional: if you want to apply logic inside this function
 
 
 @teacher_bp.route('/login', methods=['GET', 'POST'])

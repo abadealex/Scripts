@@ -17,10 +17,10 @@
 </head>
 <body>
 
-<!-- Updated Light Navbar -->
+<!-- Light Navbar -->
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
   <div class="container">
-    <a class="navbar-brand" href="{{ url_for('main.index') }}">📘 CoGrader</a>
+    <a class="navbar-brand" href="{{ url_for('main_bp.index') }}">📘 CoGrader</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
             aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
@@ -28,16 +28,28 @@
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav ms-auto">
         {% if current_user.is_authenticated %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('main_bp.dashboard') }}">Dashboard</a>
+          </li>
           {% if current_user.role == 'teacher' %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('teacher_bp.upload_guide') }}">Upload Guide</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('teacher_bp.upload_guide') }}">Upload Guide</a>
+          </li>
           {% elif current_user.role == 'student' %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('student.student_upload') }}">Submit Work</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('student_bp.student_upload') }}">Submit Work</a>
+          </li>
           {% endif %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+          </li>
         {% else %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Login</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.register') }}">Register</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+          </li>
         {% endif %}
       </ul>
     </div>
@@ -61,7 +73,7 @@
 
 <!-- Footer -->
 <footer class="text-center mt-5 mb-3 text-muted">
-    &copy; {{ current_year or 2025 }} CoGrader System
+    &copy; 2025 CoGrader System
 </footer>
 
 <!-- Scripts -->

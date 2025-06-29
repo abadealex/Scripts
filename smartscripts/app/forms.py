@@ -55,8 +55,10 @@ class TeacherRegisterForm(FlaskForm):
 # -----------------------
 
 class StudentUploadForm(FlaskForm):
+    guide_id = SelectField('Marking Guide', coerce=int, validators=[DataRequired()])
     file = FileField('Upload File', validators=[DataRequired()])
     submit = SubmitField('Submit')
+
 
 # -----------------------
 # Marking Guide Upload Form (UPDATED)

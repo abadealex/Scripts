@@ -21,11 +21,8 @@ def login():
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
             flash('Logged in successfully.', 'success')
-            # Redirect based on user role
-            if user.role == 'teacher':
-                return redirect(url_for('main_bp.teacher_dashboard'))
-            else:
-                return redirect(url_for('main_bp.student_dashboard'))
+            # Redirect to a single dashboard route that handles role logic
+            return redirect(url_for('main_bp.dashboard'))
         else:
             flash('Invalid email or password.', 'danger')
 
@@ -50,7 +47,7 @@ def register():
             db.session.add(new_user)
             db.session.commit()
             flash('Registration successful. You can now log in.', 'success')
-            return redirect(url_for('auth_bp.login'))
+            return redirect(url_for('auth.login'))
         except Exception as e:
             db.session.rollback()
             flash('Registration failed due to a server error.', 'danger')
@@ -69,4 +66,4 @@ def register():
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('auth_bp.login'))
+    return redirect(url_for('auth.login'))

@@ -7,20 +7,9 @@ from flask_login import login_required, current_user
 
 from smartscripts.app import db
 from smartscripts.app.models import MarkingGuide, StudentSubmission
+from smartscripts.utils.utils import check_teacher_access, check_student_access  # ✅ Correct import
 
 main_bp = Blueprint('main_bp', __name__)
-
-
-# Helpers for role checks
-def check_teacher_access():
-    if not current_user.is_authenticated or current_user.role != 'teacher':
-        abort(403)
-
-
-def check_student_access():
-    if not current_user.is_authenticated or current_user.role != 'student':
-        abort(403)
-
 
 @main_bp.route('/')
 def index():
@@ -30,11 +19,10 @@ def index():
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
-    # Redirect to teacher or student dashboard based on role
     if current_user.role == 'teacher':
         return redirect(url_for('teacher_bp.dashboard'))
     elif current_user.role == 'student':
-        return redirect(url_for('student_bp.student_upload'))
+        return redirect(url_for('student_bp.dashboard'))
     else:
         abort(403)
 
@@ -56,14 +44,17 @@ def upload_submission_redirect():
 @main_bp.route('/submissions')
 @login_required
 def list_submissions():
-    # List all submissions for current user with pagination
     page = request.args.get('page', 1, type=int)
     per_page = 10
 
     if current_user.role == 'teacher':
-        submissions = StudentSubmission.query.order_by(StudentSubmission.timestamp.desc()).paginate(page, per_page, error_out=False)
+        submissions = StudentSubmission.query.order_by(
+            StudentSubmission.timestamp.desc()
+        ).paginate(page, per_page, error_out=False)
     elif current_user.role == 'student':
-        submissions = StudentSubmission.query.filter_by(student_id=current_user.id).order_by(StudentSubmission.timestamp.desc()).paginate(page, per_page, error_out=False)
+        submissions = StudentSubmission.query.filter_by(
+            student_id=current_user.id
+        ).order_by(StudentSubmission.timestamp.desc()).paginate(page, per_page, error_out=False)
     else:
         abort(403)
 
@@ -75,7 +66,6 @@ def list_submissions():
 def view_submission(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
 
-    # Only student owner or teacher can view
     if submission.student_id != current_user.id and current_user.role != 'teacher':
         abort(403)
 
@@ -86,6 +76,7 @@ def view_submission(submission_id):
 @login_required
 def download_report(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
+
     if submission.student_id != current_user.id and current_user.role != 'teacher':
         abort(403)
 
@@ -105,6 +96,7 @@ def download_report(submission_id):
 @login_required
 def download_annotated(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
+
     if submission.student_id != current_user.id and current_user.role != 'teacher':
         abort(403)
 
@@ -120,32 +112,29 @@ def download_annotated(submission_id):
         return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
 
 
-# Error handlers
+# Error Handlers
 @main_bp.app_errorhandler(403)
 def forbidden(error):
     return render_template('errors/403.html'), 403
 
-
 @main_bp.app_errorhandler(404)
 def not_found(error):
     return render_template('errors/404.html'), 404
-
 
 @main_bp.app_errorhandler(500)
 def internal_error(error):
     return render_template('errors/500.html'), 500
 
 
-# Optional: Test route to confirm blueprint works
+# Test Route
 @main_bp.route('/test')
 def test():
     return "Main blueprint is working!"
 
 
-# Optional: Route to initialize/reset database (use with caution, secure in production)
+# DB Init Route (DEV ONLY)
 @main_bp.route('/init-db')
 def init_db():
-    from smartscripts.app import db
     db.drop_all()
     db.create_all()
     return "Database initialized."
