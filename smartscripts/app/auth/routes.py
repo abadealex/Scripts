@@ -8,11 +8,10 @@ from smartscripts.app.forms import LoginForm, RegisterForm
 
 from . import auth_bp  # Blueprint instance
 
-
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        # Redirect to homepage (not dashboard) if already logged in
+        # Redirect to homepage if already logged in
         return redirect(url_for('main_bp.index'))
 
     form = LoginForm()
@@ -21,13 +20,17 @@ def login():
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
             flash('Logged in successfully.', 'success')
-            # Redirect to a single dashboard route that handles role logic
-            return redirect(url_for('main_bp.dashboard'))
+            # Redirect to a role-specific dashboard after login
+            if user.role == 'teacher':
+                return redirect(url_for('teacher_bp.dashboard'))
+            elif user.role == 'student':
+                return redirect(url_for('student_bp.dashboard'))
+            else:
+                return redirect(url_for('main_bp.index'))  # For admin or other roles
         else:
             flash('Invalid email or password.', 'danger')
 
     return render_template('auth/login.html', form=form)
-
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -59,7 +62,6 @@ def register():
                 flash(f"{field.capitalize()}: {error}", 'danger')
 
     return render_template('auth/register.html', form=form)
-
 
 @auth_bp.route('/logout')
 @login_required

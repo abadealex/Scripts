@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Manual Review{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Manual Review: {{ student_name }}</h2>
+  <form method="POST" action="{{ url_for('teacher.manual_review_submit', submission_id=submission_id) }}">
+    {% for item in submission_data %}
+      <div class="card mb-3">
+        <div class="card-header">
+          <strong>Question {{ item.number }}</strong>
+          <span class="float-end text-muted">AI Score: {{ item.ai_score }} / {{ item.max_score }}</span>
+        </div>
+        <div class="card-body">
+          <p><strong>Expected Answer:</strong> {{ item.expected }}</p>
+          <p><strong>Student Answer:</strong> {{ item.student_answer }}</p>
+          <div class="mb-2">
+            <label>Override Score:</label>
+            <input type="number" name="score_{{ item.number }}" class="form-control" min="0" max="{{ item.max_score }}" value="{{ item.ai_score }}">
+          </div>
+          <div class="mb-2">
+            <label>Feedback:</label>
+            <textarea name="comment_{{ item.number }}" class="form-control" rows="2">{{ item.feedback or '' }}</textarea>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">Submit Review</button>
+    <a href="{{ url_for('teacher.dashboard') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

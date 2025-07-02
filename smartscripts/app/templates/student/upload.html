@@ -16,7 +16,8 @@
       {% endif %}
     {% endwith %}
 
-    <form method="POST" enctype="multipart/form-data" class="border p-4 rounded shadow-sm bg-light mb-4">
+    <!-- Upload Form -->
+    <form id="upload-form" method="POST" enctype="multipart/form-data" class="border p-4 rounded shadow-sm bg-light mb-4">
         {{ form.hidden_tag() }}
 
         <div class="mb-3">
@@ -46,5 +47,55 @@
 
         <button type="submit" class="btn btn-success w-100">Submit for Grading</button>
     </form>
+
+    <!-- Progress Bar -->
+    <div id="progress-wrapper" style="display:none;">
+        <progress id="upload-progress" value="0" max="100" style="width: 100%;"></progress>
+        <p id="upload-status"></p>
+    </div>
 </div>
+
+<!-- JavaScript for AJAX upload and progress bar -->
+<script>
+  const form = document.getElementById('upload-form');
+  const progressWrapper = document.getElementById('progress-wrapper');
+  const progressBar = document.getElementById('upload-progress');
+  const statusText = document.getElementById('upload-status');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    
+    // Create a FormData object to hold the form data
+    const formData = new FormData(form);
+    
+    // Create a new XMLHttpRequest
+    const xhr = new XMLHttpRequest();
+    
+    // Open a POST request to the upload route
+    xhr.open('POST', '{{ url_for("student_bp.student_upload") }}', true);
+
+    // Update progress bar during upload
+    xhr.upload.addEventListener('progress', function (e) {
+      if (e.lengthComputable) {
+        progressWrapper.style.display = 'block'; // Show progress bar
+        let percent = (e.loaded / e.total) * 100;
+        progressBar.value = percent;
+        statusText.innerText = `Uploading: ${Math.round(percent)}%`;
+      }
+    });
+
+    // Handle upload completion
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        window.location.href = xhr.responseURL;  // Redirect after success
+      } else {
+        statusText.innerText = "Upload failed.";
+      }
+    };
+
+    // Send the form data to the server
+    xhr.send(formData);
+  });
+</script>
+
 {% endblock %}

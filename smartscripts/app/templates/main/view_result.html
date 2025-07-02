@@ -85,5 +85,13 @@
             ⬅ Back to Dashboard
         </a>
     </div>
+
+    <!-- Retry Grading Button -->
+    <div class="mt-4">
+        <form action="{{ url_for('student_bp.retry_submission', submission_id=submission.id) }}" method="post">
+            <button type="submit" class="btn btn-warning">Retry Grading</button>
+        </form>
+    </div>
+
 </div>
 {% endblock %}

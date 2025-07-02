@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Upload Rubric{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Upload Marking Rubric</h2>
+  <form method="POST" enctype="multipart/form-data" action="{{ url_for('teacher.upload_rubric') }}">
+    <div class="mb-3">
+      <label for="rubricFile" class="form-label">Rubric File (PDF, DOCX, or JSON):</label>
+      <input type="file" class="form-control" id="rubricFile" name="rubric_file" required>
+    </div>
+    <div class="mb-3">
+      <label for="exam_title" class="form-label">Exam Title:</label>
+      <input type="text" class="form-control" id="exam_title" name="exam_title" required>
+    </div>
+    <button type="submit" class="btn btn-success">Upload</button>
+    <a href="{{ url_for('teacher.dashboard') }}" class="btn btn-secondary">Back</a>
+  </form>
+</div>
+{% endblock %}

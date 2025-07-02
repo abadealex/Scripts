@@ -42,7 +42,7 @@ def create_app(config_name='default'):
         db.init_app(app)
         login_manager.init_app(app)
         mail.init_app(app)
-        migrate.init_app(app, db)
+        migrate.init_app(app, db)  # Flask-Migrate integration
 
         login_manager.login_view = "auth.login"
         login_manager.login_message = "Please log in to access this page."
@@ -61,18 +61,18 @@ def create_app(config_name='default'):
         # Create necessary folders
         create_upload_folders(app, base_dir)
 
-        # Run Alembic migrations in development
+        # Run Alembic migrations in development environment
         if app.config.get("ENV") == "development":
             run_alembic_migrations(app)
 
-        # Logging setup
+        # Setup logging for production
         if not app.debug and not app.testing:
             setup_file_logging(app)
 
         # Register error handlers
         register_error_handlers(app)
 
-        # Inject global variables
+        # Inject global variables to templates
         @app.context_processor
         def inject_current_year():
             return {'current_year': datetime.utcnow().year}

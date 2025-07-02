@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env (for local development only)
+# Load environment variables from a .env file for local dev
 load_dotenv()
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -10,32 +10,32 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 class Config:
     # General
     SECRET_KEY = os.getenv('SECRET_KEY')
-
-    # TEMP DEBUG: Check if SECRET_KEY is loaded properly
-    print(f"[DEBUG] SECRET_KEY starts with: {SECRET_KEY[:6] + '...' if SECRET_KEY else 'None'}")
-
     if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY environment variable not set!")
 
-    # Logging
-    LOG_FILE = os.path.join(BASE_DIR, 'logs', 'app.log')  # Central place for logs
+    # Debug info for SECRET_KEY load (trimmed)
+    print(f"[DEBUG] SECRET_KEY loaded: {SECRET_KEY[:6]}...")
 
-    # SQLAlchemy
+    # Logging
+    LOG_FILE = os.path.join(BASE_DIR, 'logs', 'app.log')
+
+    # SQLAlchemy config
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Upload folders (local paths; ephemeral on some platforms)
-    UPLOAD_FOLDER_GUIDES = os.path.join(BASE_DIR, 'uploads', 'guides')    # Teacher uploads
-    UPLOAD_FOLDER_ANSWERS = os.path.join(BASE_DIR, 'uploads', 'answers')  # Student uploads
-    UPLOAD_FOLDER_MARKED = os.path.join(BASE_DIR, 'uploads', 'marked')    # AI-marked output
+    # Upload folders
+    UPLOAD_FOLDER_GUIDES = os.path.join(BASE_DIR, 'uploads', 'guides')
+    UPLOAD_FOLDER_ANSWERS = os.path.join(BASE_DIR, 'uploads', 'answers')
+    UPLOAD_FOLDER_MARKED = os.path.join(BASE_DIR, 'uploads', 'marked')
+    UPLOAD_FOLDER_RUBRICS = os.path.join(BASE_DIR, 'uploads', 'rubrics')
 
     # Upload settings
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max file size
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max
 
-    # Email settings
-    MAIL_SERVER = 'smtp.gmail.com'
-    MAIL_PORT = 587
-    MAIL_USE_TLS = True
+    # Email server settings
+    MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True').lower() in ['true', '1', 'yes']
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = ('CoGrader', MAIL_USERNAME)
@@ -43,7 +43,17 @@ class Config:
     if not MAIL_USERNAME or not MAIL_PASSWORD:
         print("[WARNING] MAIL_USERNAME or MAIL_PASSWORD not set. Email sending may fail.")
 
-    # Flags (can be overridden in subclasses)
+    # AI-related environment keys
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    HUGGINGFACE_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
+
+    if not OPENAI_API_KEY:
+        print("[WARNING] OPENAI_API_KEY not set. Some AI features may not work.")
+
+    if not HUGGINGFACE_API_KEY:
+        print("[WARNING] HUGGINGFACE_API_KEY not set. Some AI features may not work.")
+
+    # Flags (can be overridden)
     DEBUG = False
     TESTING = False
 
@@ -63,9 +73,9 @@ class ProductionConfig(Config):
         raise RuntimeError("DATABASE_URL environment variable not set for Production!")
 
 
-# Configuration mapping for use in Flask app
+# Flask config mapping
 config_by_name = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,
-    'default': DevelopmentConfig
+    'default': DevelopmentConfig,
 }

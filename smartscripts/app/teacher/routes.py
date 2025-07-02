@@ -27,7 +27,7 @@ def require_teacher_role():
     if request.endpoint not in exempt_routes:
         if not current_user.is_authenticated or current_user.role != 'teacher':
             abort(403)
-        check_teacher_access()  # ✅ Optional: if you want to apply logic inside this function
+        check_teacher_access()  # Optional: for more granular access control
 
 
 @teacher_bp.route('/login', methods=['GET', 'POST'])
@@ -122,21 +122,23 @@ def upload_guide():
         filename = secure_filename(file.filename)
         unique_name = f"{uuid.uuid4().hex}_{filename}"
         upload_dir = current_app.config.get('UPLOAD_FOLDER_GUIDES', 'uploads/guides')
+        
+        # Ensure the directory exists
         os.makedirs(upload_dir, exist_ok=True)
 
         file_path = os.path.join(upload_dir, unique_name)
-        file.save(file_path)
-
-        # Compress large images (>4MB)
-        if file_path.lower().endswith(('.jpg', '.jpeg', '.png')) and os.path.getsize(file_path) > 4 * 1024 * 1024:
-            compressed_path = os.path.join(upload_dir, f"compressed_{unique_name}")
-            compress_image(file_path, compressed_path)
-            os.remove(file_path)
-            file_path = compressed_path
-            unique_name = os.path.basename(compressed_path)
-
-        # Save marking guide record in DB
         try:
+            file.save(file_path)
+
+            # Compress large images (>4MB)
+            if file_path.lower().endswith(('.jpg', '.jpeg', '.png')) and os.path.getsize(file_path) > 4 * 1024 * 1024:
+                compressed_path = os.path.join(upload_dir, f"compressed_{unique_name}")
+                compress_image(file_path, compressed_path)
+                os.remove(file_path)
+                file_path = compressed_path
+                unique_name = os.path.basename(compressed_path)
+
+            # Save marking guide record in DB
             new_guide = MarkingGuide(
                 title=form.title.data or filename,
                 filename=unique_name,
@@ -147,6 +149,7 @@ def upload_guide():
             db.session.commit()
             flash('Marking guide uploaded successfully.', 'success')
             return redirect(url_for('teacher_bp.dashboard'))
+
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Failed to save marking guide: {e}")

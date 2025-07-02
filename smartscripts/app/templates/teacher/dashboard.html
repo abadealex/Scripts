@@ -24,7 +24,11 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <strong>{{ entry.guide.title or "Untitled Guide" }}</strong>
                     <small class="text-muted">
-                        Uploaded: {{ entry.guide.upload_date.strftime('%Y-%m-%d') }}
+                        {% if entry.guide.upload_date %}
+                            Uploaded: {{ entry.guide.upload_date.strftime('%Y-%m-%d') }}
+                        {% else %}
+                            Uploaded: N/A
+                        {% endif %}
                     </small>
                 </div>
                 <div class="card-body">
@@ -36,6 +40,7 @@
                                         <th>Student</th>
                                         <th>Filename</th>
                                         <th>Grade</th>
+                                        <th>Status</th> <!-- Added column header -->
                                         <th>Feedback</th>
                                         <th>Marked File</th>
                                     </tr>
@@ -46,6 +51,15 @@
                                             <td>{{ sub.student.email }}</td>
                                             <td>{{ sub.filename }}</td>
                                             <td>{{ sub.grade if sub.grade else 'Pending' }}</td>
+                                            <td>
+                                                {% if sub.review_status == 'approved' %}
+                                                    <img src="{{ url_for('static', filename='images/icon_1.png') }}" alt="Approved" width="24" height="24">
+                                                {% elif sub.review_status == 'rejected' %}
+                                                    <img src="{{ url_for('static', filename='images/icon_2.png') }}" alt="Rejected" width="24" height="24">
+                                                {% else %}
+                                                    <img src="{{ url_for('static', filename='images/icon_3.png') }}" alt="Pending" width="24" height="24">
+                                                {% endif %}
+                                            </td>
                                             <td>
                                                 {% if sub.feedback %}
                                                     <span class="badge bg-success">Available</span>
