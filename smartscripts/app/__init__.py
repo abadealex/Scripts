@@ -4,6 +4,7 @@ import traceback
 from datetime import datetime
 
 from flask import Flask, render_template
+from flask_cors import CORS
 from alembic.config import Config
 from alembic import command
 from dotenv import load_dotenv
@@ -16,8 +17,7 @@ from smartscripts.app.teacher import teacher_bp
 from smartscripts.app.student import student_bp
 from smartscripts.config import config_by_name
 
-
-# Load environment variables
+# Load environment variables from .env
 load_dotenv()
 print("DATABASE_URL used:", os.getenv("DATABASE_URL"))
 
@@ -29,21 +29,32 @@ def create_app(config_name='default'):
         template_dir = os.path.join(base_dir, 'templates')
         static_dir = os.path.join(base_dir, 'static')
 
-        # Flask App Setup
+        # Initialize Flask app
         app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
+
+        # Load configuration
         app.config.from_object(config_by_name[config_name])
 
-        # Override DB URI from environment
+        # Override DB URI with environment variable if set
         database_url = os.getenv("DATABASE_URL")
         if database_url:
             app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+
+        # Enable CORS with credentials support
+        if config_name == 'development':
+            CORS(app,
+                 origins=["http://localhost:3000"],
+                 supports_credentials=True)
+        else:
+            CORS(app, supports_credentials=True)
 
         # Initialize extensions
         db.init_app(app)
         login_manager.init_app(app)
         mail.init_app(app)
-        migrate.init_app(app, db)  # Flask-Migrate integration
+        migrate.init_app(app, db)
 
+        # Login manager config
         login_manager.login_view = "auth.login"
         login_manager.login_message = "Please log in to access this page."
         login_manager.login_message_category = "info"
@@ -55,24 +66,26 @@ def create_app(config_name='default'):
         # Register Blueprints
         app.register_blueprint(auth_bp)
         app.register_blueprint(main_bp)
-        app.register_blueprint(teacher_bp)
-        app.register_blueprint(student_bp)
+        app.register_blueprint(teacher_bp, static_folder='static', static_url_path='/teacher/static')
 
-        # Create necessary folders
+        # Register student blueprint with URL prefix /api/student
+        app.register_blueprint(student_bp, url_prefix='/api/student')
+
+        # Create upload folders if they don't exist
         create_upload_folders(app, base_dir)
 
-        # Run Alembic migrations in development environment
+        # Run Alembic migrations in development
         if app.config.get("ENV") == "development":
             run_alembic_migrations(app)
 
-        # Setup logging for production
+        # Setup file logging in production
         if not app.debug and not app.testing:
             setup_file_logging(app)
 
-        # Register error handlers
+        # Error handlers
         register_error_handlers(app)
 
-        # Inject global variables to templates
+        # Template context: inject current year
         @app.context_processor
         def inject_current_year():
             return {'current_year': datetime.utcnow().year}

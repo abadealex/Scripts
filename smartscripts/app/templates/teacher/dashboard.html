@@ -8,17 +8,34 @@
 <div class="container mt-5">
     <h2 class="mb-4">📊 Your Uploaded Guides & Student Submissions</h2>
 
-    {% with messages = get_flashed_messages() %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="alert alert-info">
-                {% for message in messages %}
+                {% for category, message in messages %}
                     <div>{{ message }}</div>
                 {% endfor %}
             </div>
         {% endif %}
     {% endwith %}
 
-    {% if guides_with_submissions %}
+    <!-- Filters for guides -->
+    <div>
+        <form method="GET" action="{{ url_for('teacher_bp.dashboard') }}">
+            <label for="guide_id">Filter by Guide:</label>
+            <select name="guide_id" id="guide_id" class="form-select">
+                <option value="">All Guides</option>
+                {% for entry in guides_with_submissions %}
+                    <option value="{{ entry.guide.id }}" {% if selected_guide == entry.guide.id %} selected {% endif %}>
+                        {{ entry.guide.title }}
+                    </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary mt-3">Filter</button>
+        </form>
+    </div>
+
+    <!-- Displaying guides and submissions -->
+    <div class="mt-5">
         {% for entry in guides_with_submissions %}
             <div class="card mb-4 shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -40,9 +57,10 @@
                                         <th>Student</th>
                                         <th>Filename</th>
                                         <th>Grade</th>
-                                        <th>Status</th> <!-- Added column header -->
+                                        <th>Status</th>
                                         <th>Feedback</th>
                                         <th>Marked File</th>
+                                        <th>Review</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -53,11 +71,11 @@
                                             <td>{{ sub.grade if sub.grade else 'Pending' }}</td>
                                             <td>
                                                 {% if sub.review_status == 'approved' %}
-                                                    <img src="{{ url_for('static', filename='images/icon_1.png') }}" alt="Approved" width="24" height="24">
+                                                    <img src="{{ url_for('static', filename='overlays/icon_1.png') }}" alt="Approved" width="24" height="24">
                                                 {% elif sub.review_status == 'rejected' %}
-                                                    <img src="{{ url_for('static', filename='images/icon_2.png') }}" alt="Rejected" width="24" height="24">
+                                                    <img src="{{ url_for('static', filename='overlays/icon_2.png') }}" alt="Rejected" width="24" height="24">
                                                 {% else %}
-                                                    <img src="{{ url_for('static', filename='images/icon_3.png') }}" alt="Pending" width="24" height="24">
+                                                    <img src="{{ url_for('static', filename='overlays/icon_3.png') }}" alt="Pending" width="24" height="24">
                                                 {% endif %}
                                             </td>
                                             <td>
@@ -69,13 +87,17 @@
                                             </td>
                                             <td>
                                                 {% if sub.marked_file_path %}
-                                                    <a href="{{ url_for('static', filename=sub.marked_file_path) }}"
-                                                       class="btn btn-sm btn-outline-primary" download>
+                                                    <a href="{{ url_for('static', filename=sub.marked_file_path) }}" class="btn btn-sm btn-outline-primary" download>
                                                         📥 Download
                                                     </a>
                                                 {% else %}
                                                     <span class="text-muted">Not Available</span>
                                                 {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('teacher_bp.review', submission_id=sub.id) }}" class="btn btn-sm btn-warning">
+                                                    Manual Review
+                                                </a>
                                             </td>
                                         </tr>
                                     {% endfor %}
@@ -88,10 +110,10 @@
                 </div>
             </div>
         {% endfor %}
-    {% else %}
-        <p class="text-muted text-center">
-            You haven’t uploaded any marking guides yet.
-        </p>
+    </div>
+
+    {% if not guides_with_submissions %}
+        <p class="text-muted text-center">You haven’t uploaded any marking guides yet.</p>
     {% endif %}
 </div>
 {% endblock %}

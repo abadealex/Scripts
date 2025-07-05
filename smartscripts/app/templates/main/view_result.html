@@ -73,7 +73,7 @@
     {% endif %}
 
     <div class="mt-4 d-flex flex-wrap gap-2">
-        <a href="{{ url_for('student.download_pdf', submission_id=submission.id) }}" class="btn btn-outline-primary">
+        <a href="{{ url_for('student_bp.download_pdf', submission_id=submission.id) }}" class="btn btn-outline-primary">
             📥 Download PDF Report
         </a>
         {% if submission.marked_file_path %}
@@ -81,7 +81,7 @@
             🖊️ Download Marked File
         </a>
         {% endif %}
-        <a href="{{ url_for('student.dashboard') }}" class="btn btn-secondary">
+        <a href="{{ url_for('student_bp.dashboard') }}" class="btn btn-secondary">
             ⬅ Back to Dashboard
         </a>
     </div>

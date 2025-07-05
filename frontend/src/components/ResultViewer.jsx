@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import axios from '../api';
+import api from '../services/api';
 
 const ResultViewer = () => {
   const [results, setResults] = useState([]);
 
   useEffect(() => {
-    axios.get('/student/results').then(res => {
+    api.get('/api/student/results').then(res => {
       setResults(res.data);
     });
   }, []);
@@ -17,7 +17,14 @@ const ResultViewer = () => {
         {results.map((r, i) => (
           <li key={i} className="border p-2 rounded shadow">
             <p><strong>Score:</strong> {r.score}</p>
-            <a href={r.marked_pdf_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">View Marked PDF</a>
+            <a
+              href={r.marked_pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 underline"
+            >
+              View Marked PDF
+            </a>
           </li>
         ))}
       </ul>

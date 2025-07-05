@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from '../api';
+import api from '../services/api';
 
 const UploadStudent = () => {
   const [file, setFile] = useState(null);
@@ -12,7 +12,7 @@ const UploadStudent = () => {
     formData.append('file', file);
 
     try {
-      await axios.post('/student/upload', formData);
+      await api.post('/api/student/upload', formData);
       alert('Uploaded successfully');
     } catch {
       alert('Upload failed');

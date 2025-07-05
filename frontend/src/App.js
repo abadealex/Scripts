@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import './styles/App.css'; // ✅ Updated CSS path
+import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 
 import UploadStudent from './components/UploadStudent';
 import ResultViewer from './components/ResultViewer';
@@ -10,14 +11,40 @@ function App() {
     <Router>
       <div className="App" style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
         <nav style={{ marginBottom: '20px' }}>
-          <Link to="/student/upload" style={{ marginRight: '15px', textDecoration: 'none', color: '#007bff' }}>Upload Student</Link>
-          <Link to="/student/results" style={{ marginRight: '15px', textDecoration: 'none', color: '#007bff' }}>View Results</Link>
-          <Link to="/teacher/dashboard" style={{ textDecoration: 'none', color: '#007bff' }}>Teacher Dashboard</Link>
+          <NavLink 
+            to="/upload" 
+            style={({ isActive }) => ({
+              marginRight: '15px',
+              textDecoration: 'none',
+              color: isActive ? '#ff6347' : '#007bff',
+            })}
+          >
+            Upload Student
+          </NavLink>
+          <NavLink 
+            to="/results" 
+            style={({ isActive }) => ({
+              marginRight: '15px',
+              textDecoration: 'none',
+              color: isActive ? '#ff6347' : '#007bff',
+            })}
+          >
+            View Results
+          </NavLink>
+          <NavLink 
+            to="/teacher/dashboard" 
+            style={({ isActive }) => ({
+              textDecoration: 'none',
+              color: isActive ? '#ff6347' : '#007bff',
+            })}
+          >
+            Teacher Dashboard
+          </NavLink>
         </nav>
 
         <Routes>
-          <Route path="/student/upload" element={<UploadStudent />} />
-          <Route path="/student/results" element={<ResultViewer />} />
+          <Route path="/upload" element={<UploadStudent />} />
+          <Route path="/results" element={<ResultViewer />} />
           <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
           <Route path="/" element={<h2>Welcome! Use the navigation links above to get started.</h2>} />
         </Routes>

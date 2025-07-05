@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import axios from '../api';
+import axios from '../services/api';
 
 const TeacherDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
 
   useEffect(() => {
-    axios.get('/teacher/dashboard').then(res => {
+    axios.get('/api/teacher/dashboard').then(res => {
       setSubmissions(res.data);
     });
   }, []);
@@ -27,7 +27,14 @@ const TeacherDashboard = () => {
               <td className="border p-2">{s.student_name}</td>
               <td className="border p-2">{s.score}</td>
               <td className="border p-2">
-                <a href={s.marked_pdf_url} target="_blank" className="text-blue-600 underline" rel="noreferrer">View</a>
+                <a
+                  href={s.marked_pdf_url}
+                  target="_blank"
+                  className="text-blue-600 underline"
+                  rel="noreferrer"
+                >
+                  View
+                </a>
               </td>
             </tr>
           ))}

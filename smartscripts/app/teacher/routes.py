@@ -14,11 +14,11 @@ from smartscripts.app import db
 from smartscripts.app.models import User, MarkingGuide, StudentSubmission
 from smartscripts.app.forms import TeacherLoginForm, TeacherRegisterForm, MarkingGuideUploadForm
 from smartscripts.utils.compress_image import compress_image
-from smartscripts.utils.utils import check_teacher_access  # ✅ Import added
+from smartscripts.utils.utils import check_teacher_access
 
 teacher_bp = Blueprint('teacher_bp', __name__, url_prefix='/teacher')
 
-
+# Access control before each request
 @teacher_bp.before_request
 def require_teacher_role():
     if request.endpoint is None or not request.endpoint.startswith('teacher_bp.'):
@@ -27,9 +27,9 @@ def require_teacher_role():
     if request.endpoint not in exempt_routes:
         if not current_user.is_authenticated or current_user.role != 'teacher':
             abort(403)
-        check_teacher_access()  # Optional: for more granular access control
+        check_teacher_access()
 
-
+# Authentication routes
 @teacher_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -46,7 +46,6 @@ def login():
             flash('Invalid email or password.', 'danger')
 
     return render_template('teacher/login.html', form=form)
-
 
 @teacher_bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -69,7 +68,6 @@ def register():
 
     return render_template('teacher/register.html', form=form)
 
-
 @teacher_bp.route('/logout')
 @login_required
 def logout():
@@ -77,7 +75,7 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('teacher_bp.login'))
 
-
+# Dashboard
 @teacher_bp.route('/dashboard')
 @login_required
 def dashboard():
@@ -107,7 +105,13 @@ def dashboard():
         selected_guide=guide_filter
     )
 
+# Analytics route
+@teacher_bp.route('/analytics')
+@login_required
+def analytics():
+    return render_template('teacher/analytics.html')
 
+# Marking guide upload
 @teacher_bp.route('/upload-guide', methods=['GET', 'POST'])
 @login_required
 def upload_guide():
@@ -122,15 +126,12 @@ def upload_guide():
         filename = secure_filename(file.filename)
         unique_name = f"{uuid.uuid4().hex}_{filename}"
         upload_dir = current_app.config.get('UPLOAD_FOLDER_GUIDES', 'uploads/guides')
-        
-        # Ensure the directory exists
         os.makedirs(upload_dir, exist_ok=True)
 
         file_path = os.path.join(upload_dir, unique_name)
         try:
             file.save(file_path)
 
-            # Compress large images (>4MB)
             if file_path.lower().endswith(('.jpg', '.jpeg', '.png')) and os.path.getsize(file_path) > 4 * 1024 * 1024:
                 compressed_path = os.path.join(upload_dir, f"compressed_{unique_name}")
                 compress_image(file_path, compressed_path)
@@ -138,7 +139,6 @@ def upload_guide():
                 file_path = compressed_path
                 unique_name = os.path.basename(compressed_path)
 
-            # Save marking guide record in DB
             new_guide = MarkingGuide(
                 title=form.title.data or filename,
                 filename=unique_name,
@@ -157,3 +157,82 @@ def upload_guide():
             return redirect(request.url)
 
     return render_template('teacher/upload.html', form=form)
+
+# Rubric upload
+@teacher_bp.route('/rubric-upload', methods=['GET', 'POST'])
+@login_required
+def rubric():
+    if request.method == 'POST':
+        rubric_file = request.files.get('rubric_file')
+        exam_title = request.form.get('exam_title')
+
+        if not rubric_file or rubric_file.filename == '':
+            flash('No file selected.', 'danger')
+            return redirect(request.url)
+
+        filename = secure_filename(rubric_file.filename)
+        unique_name = f"{uuid.uuid4().hex}_{filename}"
+        upload_dir = current_app.config.get('UPLOAD_FOLDER_RUBRICS', 'uploads/rubrics')
+        os.makedirs(upload_dir, exist_ok=True)
+
+        file_path = os.path.join(upload_dir, unique_name)
+
+        try:
+            rubric_file.save(file_path)
+            flash(f'Rubric "{exam_title}" uploaded successfully.', 'success')
+            return redirect(url_for('teacher_bp.dashboard'))
+
+        except Exception as e:
+            current_app.logger.error(f"Error uploading rubric: {e}")
+            flash('Failed to upload rubric.', 'danger')
+            return redirect(request.url)
+
+    return render_template('teacher/rubric_upload.html')
+
+# Review page - fixed!
+@teacher_bp.route('/review/<int:submission_id>', methods=['GET'])
+@login_required
+def review(submission_id):
+    submission = StudentSubmission.query.get_or_404(submission_id)
+
+    # Check teacher owns the guide associated with submission
+    if submission.guide.teacher_id != current_user.id:
+        abort(403)
+
+    # Use the related results instead of `.data`
+    submission_results = submission.results
+    student_name = submission.student.username  # you had .name but model has username
+
+    return render_template(
+        'teacher/review.html',
+        submission_results=submission_results,
+        student_name=student_name,
+        submission_id=submission.id
+    )
+
+# Manual review submit
+@teacher_bp.route('/manual_review_submit/<int:submission_id>', methods=['POST'])
+@login_required
+def manual_review_submit(submission_id):
+    submission = StudentSubmission.query.get_or_404(submission_id)
+
+    if submission.guide.teacher_id != current_user.id:
+        abort(403)
+
+    # Update scores and feedback for each Result entry
+    for result in submission.results:
+        score = request.form.get(f"score_{result.question_number}")
+        feedback = request.form.get(f"comment_{result.question_number}")
+
+        if score:
+            try:
+                result.score = float(score)
+            except ValueError:
+                pass  # you can add flash message for invalid input
+
+        if feedback:
+            result.feedback = feedback  # You might want to add feedback field to Result model if missing
+
+    db.session.commit()
+    flash('Review submitted successfully.', 'success')
+    return redirect(url_for('teacher_bp.dashboard'))

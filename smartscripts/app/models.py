@@ -28,16 +28,18 @@ class MarkingGuide(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
+    subject = db.Column(db.String(100))
+    grade_level = db.Column(db.String(100))  # <-- Added grade_level here
     filename = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    upload_date = db.Column(db.DateTime, default=datetime.utcnow)  # ✅ Added field
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
 
     teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     submissions = relationship('StudentSubmission', backref='guide', lazy=True)
 
     def __repr__(self):
-        return f"<MarkingGuide {self.title}>"
+        return f"<MarkingGuide {self.title} ({self.subject})>"
 
 # ------------------- Student Submission Model -------------------
 
@@ -56,8 +58,7 @@ class StudentSubmission(db.Model):
     feedback = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # ✅ New columns added here
-    subject = db.Column(db.String(100))
+    subject = db.Column(db.String(100))      # already existing field
     grade_level = db.Column(db.String(100))
     ai_confidence = db.Column(db.Float)
 

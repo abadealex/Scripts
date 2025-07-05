@@ -1,0 +1,39 @@
+// === COLORS ===
+$primary-color: #4a90e2;
+$secondary-color: #50e3c2;
+$accent-color: #f5a623;
+$error-color: #e74c3c;
+$success-color: #2ecc71;
+$warning-color: #f39c12;
+$text-color: #333;
+$text-light: #777;
+$background-color: #f8f9fa;
+$card-background: #ffffff;
+
+// === FONTS ===
+$font-family-base: 'Inter', sans-serif;
+$font-size-base: 16px;
+$font-size-sm: 14px;
+$font-size-lg: 20px;
+$font-size-xl: 24px;
+$font-weight-regular: 400;
+$font-weight-bold: 600;
+
+// === SPACING ===
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+
+// === BORDERS ===
+$border-radius-sm: 4px;
+$border-radius-md: 8px;
+$border-radius-lg: 12px;
+$box-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+$box-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+// === Z-INDEX ===
+$z-index-navbar: 1000;
+$z-index-modal: 1050;
+$z-index-tooltip: 1100;

@@ -3,40 +3,43 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h2 class="mb-4">Feedback for {{ exam_title }}</h2>
+  <h2 class="mb-4">Feedback for {{ exam_title|e }}</h2>
 
   {% for item in feedback_data %}
-    <div class="card mb-3">
+    <section class="card mb-3" aria-labelledby="question-{{ item.number }}">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <strong>Question {{ item.number }}</strong>
+        <h5 id="question-{{ item.number }}" class="mb-0">Question {{ item.number }}</h5>
         <span class="text-muted fw-bold">Score: {{ item.score }} / {{ item.max_score }}</span>
       </div>
       <div class="card-body">
-        <p><strong>Your Answer:</strong> {{ item.student_answer }}</p>
-        <p><strong>Expected Answer:</strong> {{ item.expected_answer }}</p>
+        <p><strong>Your Answer:</strong> {{ item.student_answer|default('N/A')|e }}</p>
+        <p><strong>Expected Answer:</strong> {{ item.expected_answer|default('N/A')|e }}</p>
 
         {% if item.feedback %}
-          <div class="alert alert-info">
-            <strong>Feedback:</strong> {{ item.feedback }}
+          <div class="alert alert-info" role="alert">
+            <strong>Feedback:</strong> {{ item.feedback|e }}
           </div>
         {% else %}
-          <div class="alert alert-secondary">
+          <div class="alert alert-secondary" role="alert">
             No specific feedback provided.
           </div>
         {% endif %}
 
         {% if item.override %}
           <p class="text-warning fw-semibold mt-2">
-            <i class="bi bi-pencil-square"></i> <!-- Bootstrap icon if you have it -->
+            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+            <span class="visually-hidden">Manual override:</span>
             Note: This score was manually reviewed by a teacher.
           </p>
         {% endif %}
       </div>
-    </div>
+    </section>
   {% endfor %}
 
   <div class="text-end mt-4">
-    <a href="{{ url_for('student.dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+    <a href="{{ url_for('student_bp.dashboard') }}" class="btn btn-primary" role="button">
+      ← Back to Dashboard
+    </a>
   </div>
 </div>
 {% endblock %}

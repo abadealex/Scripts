@@ -1,0 +1,52 @@
+.panelContainer {
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  margin: 16px 0;
+}
+
+.reviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.reviewList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.reviewItem {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reviewItem:last-child {
+  border-bottom: none;
+}
+
+.statusBadge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+}
+
+.statusPending {
+  background-color: #f39c12;
+}
+
+.statusReviewed {
+  background-color: #2ecc71;
+}
