@@ -1,17 +1,27 @@
 from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
+from flask_principal import Identity, AnonymousIdentity, identity_changed, identity_loaded, RoleNeed, UserNeed
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from smartscripts.app import db
+from smartscripts.app import db, principal
 from smartscripts.app.models import User
 from smartscripts.app.forms import LoginForm, RegisterForm
 
 from . import auth_bp  # Blueprint instance
 
+# Identity loading hook
+@identity_loaded.connect_via(auth_bp)
+def on_identity_loaded(sender, identity):
+    identity.user = current_user
+    if not current_user.is_anonymous:
+        identity.provides.add(UserNeed(current_user.id))
+        if current_user.role:
+            identity.provides.add(RoleNeed(current_user.role))
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        # Redirect to homepage if already logged in
         return redirect(url_for('main_bp.index'))
 
     form = LoginForm()
@@ -19,18 +29,26 @@ def login():
         user = User.query.filter_by(email=form.email.data).first()
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
+            identity_changed.send(
+                current_app._get_current_object(),
+                identity=Identity(user.id)
+            )
             flash('Logged in successfully.', 'success')
-            # Redirect to a role-specific dashboard after login
+
+            # Redirect based on role
             if user.role == 'teacher':
                 return redirect(url_for('teacher_bp.dashboard'))
             elif user.role == 'student':
                 return redirect(url_for('student_bp.dashboard'))
+            elif user.role == 'admin':
+                return redirect(url_for('admin_bp.dashboard'))
             else:
-                return redirect(url_for('main_bp.index'))  # For admin or other roles
+                return redirect(url_for('main_bp.index'))
         else:
             flash('Invalid email or password.', 'danger')
 
     return render_template('auth/login.html', form=form)
+
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -44,7 +62,7 @@ def register():
             username=form.username.data,
             email=form.email.data,
             password=hashed_password,
-            role=form.role.data
+            role=form.role.data.lower()  # Ensure role is lowercase for consistency
         )
         try:
             db.session.add(new_user)
@@ -63,9 +81,14 @@ def register():
 
     return render_template('auth/register.html', form=form)
 
+
 @auth_bp.route('/logout')
 @login_required
 def logout():
     logout_user()
+    identity_changed.send(
+        current_app._get_current_object(),
+        identity=AnonymousIdentity()
+    )
     flash('You have been logged out.', 'info')
     return redirect(url_for('auth.login'))

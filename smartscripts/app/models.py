@@ -1,7 +1,8 @@
+from datetime import datetime
 from smartscripts.extensions import db
 from flask_login import UserMixin
-from datetime import datetime
 from sqlalchemy.orm import relationship
+
 
 # ------------------- User Model -------------------
 
@@ -17,9 +18,11 @@ class User(UserMixin, db.Model):
 
     submissions = relationship('StudentSubmission', back_populates='student', lazy=True)
     guides = relationship('MarkingGuide', backref='teacher', lazy=True)
+    reviewed_submissions = relationship('Submission', backref='reviewer', lazy=True)
 
     def __repr__(self):
         return f"<User {self.username} ({self.role})>"
+
 
 # ------------------- Marking Guide Model -------------------
 
@@ -29,7 +32,7 @@ class MarkingGuide(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     subject = db.Column(db.String(100))
-    grade_level = db.Column(db.String(100))  # <-- Added grade_level here
+    grade_level = db.Column(db.String(100))  # New field added
     filename = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
@@ -40,6 +43,7 @@ class MarkingGuide(db.Model):
 
     def __repr__(self):
         return f"<MarkingGuide {self.title} ({self.subject})>"
+
 
 # ------------------- Student Submission Model -------------------
 
@@ -58,15 +62,16 @@ class StudentSubmission(db.Model):
     feedback = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
-    subject = db.Column(db.String(100))      # already existing field
-    grade_level = db.Column(db.String(100))
-    ai_confidence = db.Column(db.Float)
+    subject = db.Column(db.String(100))  # Existing field
+    grade_level = db.Column(db.String(100))  # New field added
+    ai_confidence = db.Column(db.Float)  # New field added
 
     student = relationship('User', back_populates='submissions')
     results = relationship('Result', backref='submission', lazy=True)
 
     def __repr__(self):
         return f"<StudentSubmission {self.id} by Student {self.student_id}>"
+
 
 # ------------------- Result Model -------------------
 
@@ -84,3 +89,39 @@ class Result(db.Model):
 
     def __repr__(self):
         return f"<Result Q{self.question_number} Score: {self.score}>"
+
+
+# ------------------- Submission Model (OCR + Review) -------------------
+# This is the new model for tracking OCR extraction and review
+
+class Submission(db.Model):
+    __tablename__ = 'submission'
+
+    id = db.Column(db.Integer, primary_key=True)
+    image_path = db.Column(db.String(256), nullable=False)
+    extracted_text = db.Column(db.Text)
+    confidence = db.Column(db.Float)
+    needs_human_review = db.Column(db.Boolean, default=False)
+    manual_override = db.Column(db.Boolean, default=False)
+
+    reviewed_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+    def __repr__(self):
+        return f"<Submission {self.id} OCR confidence: {self.confidence}>"
+
+
+# ------------------- Audit Log Model -------------------
+
+class AuditLog(db.Model):
+    __tablename__ = 'audit_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey('submission.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    action = db.Column(db.String(64))
+    old_text = db.Column(db.Text)
+    new_text = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<AuditLog submission_id={self.submission_id} action={self.action}>"

@@ -17,34 +17,29 @@ from smartscripts.app.teacher import teacher_bp
 from smartscripts.app.student import student_bp
 from smartscripts.config import config_by_name
 
-# Load environment variables from .env
+# Load environment variables
 load_dotenv()
 print("DATABASE_URL used:", os.getenv("DATABASE_URL"))
 
 
 def create_app(config_name='default'):
     try:
-        # Paths
+        # Base directories
         base_dir = os.path.abspath(os.path.dirname(__file__))
         template_dir = os.path.join(base_dir, 'templates')
         static_dir = os.path.join(base_dir, 'static')
 
-        # Initialize Flask app
         app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
-
-        # Load configuration
         app.config.from_object(config_by_name[config_name])
 
-        # Override DB URI with environment variable if set
+        # Override DB URI if set in env
         database_url = os.getenv("DATABASE_URL")
         if database_url:
             app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 
-        # Enable CORS with credentials support
+        # Enable CORS
         if config_name == 'development':
-            CORS(app,
-                 origins=["http://localhost:3000"],
-                 supports_credentials=True)
+            CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
         else:
             CORS(app, supports_credentials=True)
 
@@ -54,7 +49,6 @@ def create_app(config_name='default'):
         mail.init_app(app)
         migrate.init_app(app, db)
 
-        # Login manager config
         login_manager.login_view = "auth.login"
         login_manager.login_message = "Please log in to access this page."
         login_manager.login_message_category = "info"
@@ -63,29 +57,27 @@ def create_app(config_name='default'):
         def load_user(user_id):
             return User.query.get(int(user_id))
 
-        # Register Blueprints
+        # Register Blueprints with specific static paths
         app.register_blueprint(auth_bp)
-        app.register_blueprint(main_bp)
+        app.register_blueprint(main_bp, static_folder='static', static_url_path='/main/static')
         app.register_blueprint(teacher_bp, static_folder='static', static_url_path='/teacher/static')
-
-        # Register student blueprint with URL prefix /api/student
         app.register_blueprint(student_bp, url_prefix='/api/student')
 
-        # Create upload folders if they don't exist
+        # Create upload folders
         create_upload_folders(app, base_dir)
 
-        # Run Alembic migrations in development
+        # Run Alembic migrations in dev
         if app.config.get("ENV") == "development":
             run_alembic_migrations(app)
 
-        # Setup file logging in production
+        # Logging
         if not app.debug and not app.testing:
             setup_file_logging(app)
 
-        # Error handlers
+        # Error Handlers
         register_error_handlers(app)
 
-        # Template context: inject current year
+        # Template Context: current year
         @app.context_processor
         def inject_current_year():
             return {'current_year': datetime.utcnow().year}
@@ -101,7 +93,9 @@ def create_app(config_name='default'):
 def create_upload_folders(app, base_dir):
     folders = [
         app.config.get('UPLOAD_FOLDER', os.path.join(base_dir, '..', 'uploads')),
-        app.config.get('UPLOAD_FOLDER_GUIDES', os.path.join(base_dir, '..', 'uploads', 'guides'))
+        app.config.get('UPLOAD_FOLDER_GUIDES', os.path.join(base_dir, '..', 'uploads', 'guides')),
+        app.config.get('UPLOAD_FOLDER_RUBRICS', os.path.join(base_dir, '..', 'uploads', 'rubrics')),
+        app.config.get('UPLOAD_FOLDER_BULK', os.path.join(base_dir, '..', 'uploads', 'bulk')),
     ]
     for folder in folders:
         try:

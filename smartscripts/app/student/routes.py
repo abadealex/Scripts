@@ -22,7 +22,6 @@ from smartscripts.ai.marking_pipeline import mark_submission
 from smartscripts.utils.pdf_helpers import convert_pdf_to_images
 from smartscripts.ai.ocr_engine import extract_text_from_image
 
-# Blueprint with /api/student prefix for all routes
 student_bp = Blueprint('student_bp', __name__, url_prefix='/api/student')
 
 
@@ -120,8 +119,6 @@ def student_upload():
             if not cv2.imwrite(annotated_path, annotated_image):
                 raise IOError(f"Failed to write annotated image to {annotated_path}")
 
-            current_app.logger.info(f"Annotated image saved to {annotated_path}")
-
         except Exception as e:
             error_msg = f"Grading error: {str(e)}\n{traceback.format_exc()}"
             current_app.logger.error(error_msg.encode('ascii', 'ignore').decode())
@@ -160,6 +157,111 @@ def student_upload():
     return render_template('student/upload.html', form=form)
 
 
+@student_bp.route('/upload/bulk', methods=['POST'])
+@login_required
+def bulk_upload():
+    files = request.files.getlist('files')
+    guide_id = request.form.get('guide_id')
+
+    if not files or not guide_id:
+        return jsonify({'error': 'Missing files or guide ID'}), 400
+
+    guide = MarkingGuide.query.get_or_404(guide_id)
+    results = []
+
+    for file in files:
+        try:
+            if not allowed_file(file.filename):
+                continue
+
+            filename = secure_filename(file.filename)
+            uuid_token = uuid.uuid4().hex
+            original_filename = f"{uuid_token}_{filename}"
+            upload_dir = os.path.join(current_app.static_folder, 'uploads')
+            os.makedirs(upload_dir, exist_ok=True)
+            original_path = os.path.join(upload_dir, original_filename)
+            file.save(original_path)
+
+            if original_path.lower().endswith('.pdf'):
+                image_paths = convert_pdf_to_images(original_path, upload_dir)
+                if not image_paths:
+                    continue
+                original_path = image_paths[0]
+
+            student_text, similarity_score, annotated_image = mark_submission(
+                file_path=original_path,
+                guide_id=guide.id,
+                student_id=current_user.id,
+                threshold=0.75
+            )
+
+            annotated_filename = f"{uuid_token}_annotated.png"
+            annotated_dir = os.path.join(current_app.static_folder, 'annotated', 'cross')
+            os.makedirs(annotated_dir, exist_ok=True)
+            annotated_path = os.path.join(annotated_dir, annotated_filename)
+            cv2.imwrite(annotated_path, annotated_image)
+
+            original_file_rel = Path(os.path.relpath(original_path, current_app.static_folder)).as_posix()
+            annotated_file_rel = Path(os.path.relpath(annotated_path, current_app.static_folder)).as_posix()
+
+            submission = StudentSubmission(
+                student_id=current_user.id,
+                guide_id=guide.id,
+                subject=guide.subject,
+                grade_level=None,
+                answer_filename=original_file_rel,
+                graded_image=annotated_file_rel,
+                report_filename=None,
+                grade=similarity_score,
+                feedback='',
+                ai_confidence=similarity_score,
+                timestamp=datetime.utcnow()
+            )
+
+            db.session.add(submission)
+            db.session.commit()
+
+            results.append({
+                'filename': filename,
+                'grade': similarity_score
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Bulk upload failed for {file.filename}: {e}")
+
+    return jsonify({'status': 'success', 'results': results})
+
+
+@student_bp.route('/grade/semantic', methods=['POST'])
+@login_required
+def grade_semantic():
+    """
+    API for receiving raw text and guide_id, returning grade
+    """
+    data = request.json
+    student_text = data.get('student_text')
+    guide_id = data.get('guide_id')
+
+    if not student_text or not guide_id:
+        return jsonify({'error': 'Missing student_text or guide_id'}), 400
+
+    try:
+        student_text, similarity_score, annotated_image = mark_submission(
+            text_input=student_text,
+            guide_id=guide_id,
+            student_id=current_user.id,
+            threshold=0.75
+        )
+        return jsonify({
+            'grade': similarity_score,
+            'student_text': student_text
+        })
+    except Exception as e:
+        current_app.logger.error(f"Semantic grading error: {e}")
+        return jsonify({'error': 'Grading failed'}), 500
+
+
 @student_bp.route('/result/<int:submission_id>')
 @login_required
 def view_single_result(submission_id):
@@ -172,8 +274,10 @@ def view_single_result(submission_id):
 @student_bp.route('/results', methods=['GET'])
 @login_required
 def get_student_results():
-    """Returns student submissions in JSON format"""
-    submissions = StudentSubmission.query.filter_by(student_id=current_user.id).order_by(StudentSubmission.timestamp.desc()).all()
+    submissions = StudentSubmission.query.filter_by(
+        student_id=current_user.id
+    ).order_by(StudentSubmission.timestamp.desc()).all()
+
     data = {
         "results": [
             {

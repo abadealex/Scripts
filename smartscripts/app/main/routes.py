@@ -4,7 +4,8 @@ from flask import (
     url_for, flash, current_app, abort, send_from_directory
 )
 from flask_login import login_required, current_user
-from smartscripts.utils.utils import check_teacher_access, check_student_access  # ✅ Correct import
+from smartscripts.utils.utils import check_teacher_access, check_student_access
+from smartscripts.models import StudentSubmission, db  # Make sure models and db are imported properly
 
 main_bp = Blueprint('main_bp', __name__)
 
@@ -12,10 +13,10 @@ main_bp = Blueprint('main_bp', __name__)
 def index():
     return render_template('main/index.html')
 
+
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
-    # Redirect users based on role
     if current_user.role == 'teacher':
         return redirect(url_for('teacher_bp.dashboard'))
     elif current_user.role == 'student':
@@ -23,19 +24,20 @@ def dashboard():
     else:
         abort(403)
 
+
 @main_bp.route('/upload/guide')
 @login_required
 def upload_guide_redirect():
-    # Ensure only teachers can access this
     check_teacher_access()
     return redirect(url_for('teacher_bp.upload_guide'))
+
 
 @main_bp.route('/upload/submission')
 @login_required
 def upload_submission_redirect():
-    # Ensure only students can access this
     check_student_access()
     return redirect(url_for('student_bp.student_upload'))
+
 
 @main_bp.route('/submissions')
 @login_required
@@ -43,37 +45,37 @@ def list_submissions():
     page = request.args.get('page', 1, type=int)
     per_page = 10
 
-    # List submissions based on user role
     if current_user.role == 'teacher':
         submissions = StudentSubmission.query.order_by(
             StudentSubmission.timestamp.desc()
-        ).paginate(page, per_page, error_out=False)
+        ).paginate(page=page, per_page=per_page, error_out=False)
     elif current_user.role == 'student':
         submissions = StudentSubmission.query.filter_by(
             student_id=current_user.id
-        ).order_by(StudentSubmission.timestamp.desc()).paginate(page, per_page, error_out=False)
+        ).order_by(StudentSubmission.timestamp.desc()).paginate(
+            page=page, per_page=per_page, error_out=False)
     else:
         abort(403)
 
     return render_template('main/submissions.html', submissions=submissions)
+
 
 @main_bp.route('/submission/<int:submission_id>')
 @login_required
 def view_submission(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
 
-    # Ensure users can only view their own submission or submissions as a teacher
     if submission.student_id != current_user.id and current_user.role != 'teacher':
         abort(403)
 
     return render_template('main/view_submission.html', submission=submission)
+
 
 @main_bp.route('/download/report/<int:submission_id>')
 @login_required
 def download_report(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
 
-    # Ensure only the student or a teacher can download the report
     if submission.student_id != current_user.id and current_user.role != 'teacher':
         abort(403)
 
@@ -88,12 +90,12 @@ def download_report(submission_id):
         flash('Report file not found.', 'danger')
         return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
 
+
 @main_bp.route('/download/annotated/<int:submission_id>')
 @login_required
 def download_annotated(submission_id):
     submission = StudentSubmission.query.get_or_404(submission_id)
 
-    # Ensure only the student or a teacher can download the annotated file
     if submission.student_id != current_user.id and current_user.role != 'teacher':
         abort(403)
 
@@ -108,23 +110,28 @@ def download_annotated(submission_id):
         flash('Annotated file not found.', 'danger')
         return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
 
+
 # Error Handlers
 @main_bp.app_errorhandler(403)
 def forbidden(error):
     return render_template('errors/403.html'), 403
 
+
 @main_bp.app_errorhandler(404)
 def not_found(error):
     return render_template('errors/404.html'), 404
+
 
 @main_bp.app_errorhandler(500)
 def internal_error(error):
     return render_template('errors/500.html'), 500
 
+
 # Test Route
 @main_bp.route('/test')
 def test():
     return "Main blueprint is working!"
+
 
 # DB Init Route (DEV ONLY)
 @main_bp.route('/init-db')

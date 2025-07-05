@@ -1,41 +1,61 @@
-import json
-import os
-from typing import Optional, Dict
+from datetime import datetime
+from typing import Optional
+from smartscripts.models import AuditLog  # ORM model
+from smartscripts.extensions import db    # SQLAlchemy session
 
-# File to store manual review overrides (could be replaced with DB)
-OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'reviews.json')
 
-def load_overrides() -> Dict:
+def log_manual_review(
+    reviewer_id: str,
+    question_id: str,
+    old_text: str,
+    new_text: str,
+    feedback: Optional[str] = None,
+    comment: Optional[str] = None
+):
     """
-    Load manual review overrides from JSON file.
-    Returns an empty dict if file doesn't exist.
-    """
-    if not os.path.exists(OVERRIDES_FILE):
-        return {}
-    with open(OVERRIDES_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    Log a manual review correction or override for audit and retraining purposes.
 
-def save_overrides(overrides: Dict):
+    Args:
+        reviewer_id: Who performed the review.
+        question_id: Question affected.
+        old_text: Original AI-generated or submitted text.
+        new_text: Corrected/edited version.
+        feedback: Optional textual feedback left by the reviewer.
+        comment: Optional reviewer note (e.g., justification or tags).
     """
-    Save manual review overrides to JSON file.
-    """
-    with open(OVERRIDES_FILE, 'w', encoding='utf-8') as f:
-        json.dump(overrides, f, indent=4)
+    log_entry = AuditLog(
+        user_id=reviewer_id,
+        question_id=question_id,
+        action="manual_override",
+        old_text=old_text,
+        new_text=new_text,
+        feedback=feedback,
+        comment=comment,
+        timestamp=datetime.utcnow()
+    )
+    db.session.add(log_entry)
+    db.session.commit()
 
-def get_override(student_id: str, question_id: str) -> Optional[bool]:
-    """
-    Retrieve override status for a specific student's question.
-    Returns True/False if overridden, None if no override found.
-    """
-    overrides = load_overrides()
-    return overrides.get(student_id, {}).get(question_id)
 
-def set_override(student_id: str, question_id: str, is_correct: bool):
+def get_review_history(question_id: str) -> list:
     """
-    Save or update override for a student's answer on a question.
+    Fetch the full audit trail for a question.
+
+    Args:
+        question_id: The ID of the question to fetch history for.
+
+    Returns:
+        List of dicts summarizing manual interventions.
     """
-    overrides = load_overrides()
-    if student_id not in overrides:
-        overrides[student_id] = {}
-    overrides[student_id][question_id] = is_correct
-    save_overrides(overrides)
+    logs = AuditLog.query.filter_by(question_id=question_id, action="manual_override").all()
+    return [
+        {
+            "reviewer": log.user_id,
+            "timestamp": log.timestamp.isoformat(),
+            "old_text": log.old_text,
+            "new_text": log.new_text,
+            "feedback": log.feedback,
+            "comment": log.comment
+        }
+        for log in logs
+    ]

@@ -1,0 +1,52 @@
+.overlayContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.overlayIcon {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  z-index: 10;
+}
+
+.tick {
+  top: 10px;
+  left: 10px;
+}
+
+.cross {
+  top: 10px;
+  right: 10px;
+}
+
+.halfTick {
+  bottom: 10px;
+  left: 10px;
+}
+
+.commentBubble {
+  bottom: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: #333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  max-width: 200px;
+}
+
+.highlightBox {
+  position: absolute;
+  border: 2px dashed #ffc107;
+  background: rgba(255, 255, 0, 0.2);
+  z-index: 5;
+}
+
+.feedbackNote {
+  margin-top: 1rem;
+  font-style: italic;
+  font-size: 0.9rem;
+  color: #666;
+}

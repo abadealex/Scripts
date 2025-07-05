@@ -1,28 +1,40 @@
-// App.jsx
-import Navbar from './components/Navbar';
-import HeroSection from './components/HeroSection';
-import Features from './components/Features';
-import HowItWorks from './components/HowItWorks';
-import LiveDemo from './components/LiveDemo';
-import Testimonials from './components/Testimonials';
-import CtaFooter from './components/CtaFooter';
-import Footer from './components/Footer';
+// src/App.jsx
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import HomePage from './pages/HomePage';
+import ReviewPage from './pages/ReviewPage';
+import Login from './pages/Login';
+import Unauthorized from './pages/Unauthorized';
+import RoleBasedRoute from './components/RoleBasedRoute';
+import BulkUploadForm from './components/BulkUploadForm';
 
-function App() {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-grow">
-        <HeroSection />
-        <Features />
-        <HowItWorks />
-        <LiveDemo />
-        <Testimonials />
-        <CtaFooter />
-      </main>
-      <Footer />
-    </div>
-  );
-}
+const App = () => (
+  <AuthProvider>
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route
+          path="/teacher/review"
+          element={
+            <RoleBasedRoute allowedRoles={['teacher']}>
+              <ReviewPage />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/teacher/upload"
+          element={
+            <RoleBasedRoute allowedRoles={['teacher']}>
+              <BulkUploadForm />
+            </RoleBasedRoute>
+          }
+        />
+        <Route path="/login" element={<Login />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
+      </Routes>
+    </Router>
+  </AuthProvider>
+);
 
 export default App;
