@@ -5,7 +5,7 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from smartscripts.utils.utils import check_teacher_access, check_student_access
-from smartscripts.models import StudentSubmission, db  # Make sure models and db are imported properly
+from smartscripts.models import StudentSubmission, db  # Ensure correct import path
 
 main_bp = Blueprint('main_bp', __name__)
 
@@ -84,11 +84,13 @@ def download_report(submission_id):
         return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
 
     upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-    try:
-        return send_from_directory(directory=upload_dir, filename=submission.report_filename, as_attachment=True)
-    except FileNotFoundError:
+    report_path = os.path.join(upload_dir, submission.report_filename)
+    
+    if not os.path.exists(report_path):
         flash('Report file not found.', 'danger')
         return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
+
+    return send_from_directory(directory=upload_dir, path=submission.report_filename, as_attachment=True)
 
 
 @main_bp.route('/download/annotated/<int:submission_id>')
@@ -104,11 +106,13 @@ def download_annotated(submission_id):
         return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
 
     upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-    try:
-        return send_from_directory(directory=upload_dir, filename=submission.graded_image, as_attachment=True)
-    except FileNotFoundError:
+    annotated_path = os.path.join(upload_dir, submission.graded_image)
+    
+    if not os.path.exists(annotated_path):
         flash('Annotated file not found.', 'danger')
         return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
+
+    return send_from_directory(directory=upload_dir, path=submission.graded_image, as_attachment=True)
 
 
 # Error Handlers
@@ -133,7 +137,7 @@ def test():
     return "Main blueprint is working!"
 
 
-# DB Init Route (DEV ONLY)
+# DB Init Route (DEV ONLY — REMOVE IN PROD)
 @main_bp.route('/init-db')
 def init_db():
     db.drop_all()

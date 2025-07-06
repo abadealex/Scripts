@@ -1,65 +1,122 @@
+# smartscripts/models.py
 from datetime import datetime
 from smartscripts.extensions import db
 from flask_login import UserMixin
+from sqlalchemy.orm import relationship
 
-
-class User(db.Model, UserMixin):
-    __tablename__ = 'users'
+# ------------------- User Model -------------------
+class User(UserMixin, db.Model):
+    __tablename__ = 'user'
 
     id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
-    name = db.Column(db.String(100), nullable=True)
-    role = db.Column(db.String(50), default='student')  # e.g., student, teacher, admin
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    password = db.Column(db.String(128), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+    registered_on = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     # Relationships
-    feedbacks = db.relationship('Feedback', backref='user', lazy=True)
-    audit_logs = db.relationship('AuditLog', backref='user', lazy=True)
-    bulk_submissions = db.relationship('BulkFileSubmission', backref='user', lazy=True)
+    submissions = relationship('StudentSubmission', back_populates='student', lazy=True)
+    guides = relationship('MarkingGuide', backref='teacher', lazy=True)
+    reviewed_submissions = relationship('Submission', backref='reviewer', lazy=True)
+    audit_logs = relationship('AuditLog', backref='user', lazy=True)
 
     def __repr__(self):
-        return f"<User {self.email}>"
+        return f"<User {self.username} ({self.role})>"
 
-
-class AuditLog(db.Model):
-    __tablename__ = 'audit_logs'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    action = db.Column(db.String(255), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    ip_address = db.Column(db.String(45), nullable=True)  # IPv6 compatible
-    additional_info = db.Column(db.Text, nullable=True)
-
-    def __repr__(self):
-        return f"<AuditLog user_id={self.user_id} action={self.action}>"
-
-
-class Feedback(db.Model):
-    __tablename__ = 'feedbacks'
+# ------------------- Marking Guide Model -------------------
+class MarkingGuide(db.Model):
+    __tablename__ = 'marking_guide'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    submission_id = db.Column(db.Integer, nullable=True)  # optional link to submission if you have
-    message = db.Column(db.Text, nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    subject = db.Column(db.String(100))
+    grade_level = db.Column(db.String(100))
+    filename = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    resolved = db.Column(db.Boolean, default=False)
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
+
+    teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # Relationships
+    submissions = relationship('StudentSubmission', backref='guide', lazy=True)
 
     def __repr__(self):
-        return f"<Feedback user_id={self.user_id} resolved={self.resolved}>"
+        return f"<MarkingGuide {self.title} ({self.subject})>"
 
-
-class BulkFileSubmission(db.Model):
-    __tablename__ = 'bulk_file_submissions'
+# ------------------- Student Submission Model -------------------
+class StudentSubmission(db.Model):
+    __tablename__ = 'student_submissions'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    original_filename = db.Column(db.String(255), nullable=False)
-    stored_filename = db.Column(db.String(255), nullable=False)
-    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(50), default='pending')  # e.g., pending, processing, completed, failed
-    error_message = db.Column(db.Text, nullable=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    guide_id = db.Column(db.Integer, db.ForeignKey('marking_guide.id'), nullable=False)
+
+    answer_filename = db.Column(db.String(255))
+    graded_image = db.Column(db.String(255))
+    report_filename = db.Column(db.String(255))
+
+    grade = db.Column(db.Float)
+    feedback = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    subject = db.Column(db.String(100))
+    grade_level = db.Column(db.String(100))
+    ai_confidence = db.Column(db.Float)
+
+    # Relationships
+    student = relationship('User', back_populates='submissions')
+    results = relationship('Result', backref='submission', lazy=True)
 
     def __repr__(self):
-        return f"<BulkFileSubmission id={self.id} user_id={self.user_id} status={self.status}>"
+        return f"<StudentSubmission {self.id} by Student {self.student_id}>"
+
+# ------------------- Result Model -------------------
+class Result(db.Model):
+    __tablename__ = 'result'
+
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey('student_submissions.id'), nullable=False)
+
+    question_number = db.Column(db.Integer)
+    is_correct = db.Column(db.Boolean)
+    student_answer = db.Column(db.Text)
+    expected_answer = db.Column(db.Text)
+    score = db.Column(db.Float)
+
+    def __repr__(self):
+        return f"<Result Q{self.question_number} Score: {self.score}>"
+
+# ------------------- Submission Model (OCR + Review) -------------------
+class Submission(db.Model):
+    __tablename__ = 'submission'
+
+    id = db.Column(db.Integer, primary_key=True)
+    image_path = db.Column(db.String(256), nullable=False)
+    extracted_text = db.Column(db.Text)
+    confidence = db.Column(db.Float)
+    needs_human_review = db.Column(db.Boolean, default=False)
+    manual_override = db.Column(db.Boolean, default=False)
+
+    reviewed_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+    # Relationships
+    audit_logs = relationship('AuditLog', backref='submission', lazy=True)
+
+    def __repr__(self):
+        return f"<Submission {self.id} OCR confidence: {self.confidence}>"
+
+# ------------------- Audit Log Model -------------------
+class AuditLog(db.Model):
+    __tablename__ = 'audit_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey('submission.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    action = db.Column(db.String(64))
+    old_text = db.Column(db.Text)
+    new_text = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<AuditLog submission_id={self.submission_id} action={self.action}>"

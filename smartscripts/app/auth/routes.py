@@ -1,17 +1,17 @@
-from flask import render_template, redirect, url_for, flash, request
+from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_principal import Identity, AnonymousIdentity, identity_changed, identity_loaded, RoleNeed, UserNeed
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from smartscripts.app import db, principal
-from smartscripts.app.models import User
-from smartscripts.app.forms import LoginForm, RegisterForm
+from smartscripts.models import User  # fixed import here
+from smartscripts.app.forms import LoginForm, RegisterForm  # assuming forms.py is inside app/
 
 from . import auth_bp  # Blueprint instance
 
 # Identity loading hook
 @identity_loaded.connect_via(auth_bp)
 def on_identity_loaded(sender, identity):
+    from smartscripts.app import principal  # Local import
     identity.user = current_user
     if not current_user.is_anonymous:
         identity.provides.add(UserNeed(current_user.id))
@@ -55,6 +55,8 @@ def register():
     if current_user.is_authenticated:
         return redirect(url_for('main_bp.index'))
 
+    from smartscripts.app import db  # Local import
+
     form = RegisterForm()
     if form.validate_on_submit():
         hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256')
@@ -62,7 +64,7 @@ def register():
             username=form.username.data,
             email=form.email.data,
             password=hashed_password,
-            role=form.role.data.lower()  # Ensure role is lowercase for consistency
+            role=form.role.data.lower()
         )
         try:
             db.session.add(new_user)

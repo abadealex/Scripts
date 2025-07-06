@@ -12,15 +12,16 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import cv2
 
-from smartscripts.app import db
+from smartscripts.extensions import db
 from smartscripts.app.forms import StudentUploadForm
-from smartscripts.app.models import MarkingGuide, StudentSubmission
+from smartscripts.models import MarkingGuide, StudentSubmission
 from smartscripts.utils.utils import allowed_file
 from smartscripts.utils.compress_image import compress_image
 from smartscripts.utils import check_student_access
 from smartscripts.ai.marking_pipeline import mark_submission
 from smartscripts.utils.pdf_helpers import convert_pdf_to_images
 from smartscripts.ai.ocr_engine import extract_text_from_image
+
 
 student_bp = Blueprint('student_bp', __name__, url_prefix='/api/student')
 
@@ -84,6 +85,7 @@ def student_upload():
         original_path = os.path.join(upload_dir, original_filename)
         file.save(original_path)
 
+        # Handle PDF conversion to images
         if original_path.lower().endswith('.pdf'):
             image_paths = convert_pdf_to_images(original_path, upload_dir)
             if not image_paths:
@@ -91,6 +93,7 @@ def student_upload():
                 return redirect(request.url)
             original_path = image_paths[0]
 
+        # Compress large images
         if original_path.lower().endswith(('.jpg', '.jpeg', '.png')) and os.path.getsize(original_path) > 4 * 1024 * 1024:
             compressed_path = os.path.join(upload_dir, f"compressed_{original_filename}")
             compress_image(original_path, compressed_path)
