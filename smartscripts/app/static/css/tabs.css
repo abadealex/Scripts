@@ -1,0 +1,94 @@
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 2px solid #ccc;
+  margin-bottom: 15px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tab {
+  padding: 10px 20px;
+  border: 1px solid #ccc;
+  border-bottom: none;
+  background: #f1f1f1;
+  margin-right: 5px;
+  border-radius: 5px 5px 0 0;
+  font-weight: 500;
+  outline: none;
+}
+
+.tab.active {
+  background: white;
+  font-weight: 700;
+  border-bottom: 2px solid white;
+}
+
+.tab-content {
+  border: 1px solid #ccc;
+  border-radius: 0 5px 5px 5px;
+  padding: 15px;
+  background: white;
+}
+
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+/* Responsive iframe */
+.iframe-wrapper {
+  position: relative;
+  padding-bottom: 56.25%; /* 16:9 ratio */
+  height: 0;
+  overflow: hidden;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+.iframe-wrapper iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Loading indicator */
+.loading-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 600;
+  color: #555;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 6px 12px;
+  border-radius: 4px;
+  pointer-events: none;
+  user-select: none;
+  display: none;
+}
+
+/* Button Styles */
+.btn {
+  display: inline-block;
+  padding: 6px 12px;
+  margin-right: 10px;
+  background-color: #007bff;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+.btn:hover {
+  background-color: #0056b3;
+}

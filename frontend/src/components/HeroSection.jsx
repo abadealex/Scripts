@@ -1,21 +1,20 @@
-// components/HeroSection.jsx
-export default function HeroSection() {
+// src/components/HeroSection.jsx
+import React from 'react';
+
+const HeroSection = () => {
   return (
-    <section className="bg-blue-50 py-20 text-center px-6">
-      <h1 className="text-4xl md:text-5xl font-extrabold text-blue-700 mb-4">
-        Automated Grading Made Simple
-      </h1>
-      <p className="text-lg md:text-xl text-gray-700 mb-8">
-        Grade papers 10x faster using AI
-      </p>
-      <div className="space-x-4">
-        <a href="/signup" className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-          Get Started
-        </a>
-        <a href="#how-it-works" className="text-blue-600 font-semibold hover:underline">
-          See How It Works
-        </a>
+    <section className="bg-blue-100 py-16 text-center">
+      <div className="max-w-7xl mx-auto px-4">
+        <h2 className="text-5xl font-semibold text-gray-800">Automated Grading Made Simple</h2>
+        <p className="mt-4 text-xl text-gray-600">Grade papers 10x faster using AI</p>
+        <div className="mt-8">
+          <a href="/get-started" className="bg-blue-600 text-white py-2 px-6 rounded-lg text-lg mr-4">Get Started</a>
+          <a href="#how-it-works" className="bg-transparent border-2 border-blue-600 text-blue-600 py-2 px-6 rounded-lg text-lg">See How It Works</a>
+        </div>
+        <img src="/assets/images/smart_scripts_logo.png" alt="SmartScripts logo" className="mx-auto mt-8 w-80" />
       </div>
     </section>
   );
-}
+};
+
+export default HeroSection;

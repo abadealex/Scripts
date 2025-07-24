@@ -1,241 +1,127 @@
-import os
 import uuid
-import cv2
-import pytesseract
-from fpdf import FPDF
+import json
+from pathlib import Path
 from flask import current_app
-from difflib import SequenceMatcher
-from sentence_transformers import SentenceTransformer, util
-import openai
+from werkzeug.utils import secure_filename
 
-from .models import MarkingGuide
+# ✅ Import shared utility functions
+from smartscripts.utils.file_io import allowed_file, ensure_folder_exists, delete_file_if_exists
 
-# Load the model once globally
-model = SentenceTransformer('all-MiniLM-L6-v2')
+# -------------------- Core Upload Utilities --------------------
 
-# Define common grading keywords
-KEYWORDS = [
-    'density', 'mass', 'volume', 'weighing scale', 'measuring cylinder',
-    'displacement', 'water level', 'submerge', 'gold', 'compare',
-    'investigation'
-]
+def generate_unique_filename(filename):
+    """Generate a unique filename with a UUID prefix to avoid collisions."""
+    filename = secure_filename(filename)
+    unique_prefix = uuid.uuid4().hex
+    return f"{unique_prefix}_{filename}"
 
-# ----------- File Validation -----------
-def allowed_file(filename):
-    return (
-        '.' in filename and
-        filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
-    )
 
-# ----------- OCR with Preprocessing -----------
-def extract_text_from_image(image_path):
-    img = cv2.imread(image_path)
-    if img is None:
-        raise ValueError(f"Could not read image: {image_path}")
+def save_file(file_storage, subfolder, test_id, student_id=None):
+    """
+    Save uploaded file with unique filename, creating subdirectories as needed.
+    Directory structure: <UPLOAD_FOLDER>/<subfolder>/<test_id>/<student_id>/ (student_id optional)
+    Returns relative path to saved file from UPLOAD_FOLDER.
+    """
+    upload_root = Path(current_app.config.get('UPLOAD_FOLDER'))
+    if not upload_root:
+        raise RuntimeError("UPLOAD_FOLDER not configured in app config")
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    thresh = cv2.adaptiveThreshold(
-        blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-    )
-    text = pytesseract.image_to_string(thresh, lang='eng').strip()
-    return text
+    if not file_storage:
+        raise ValueError("No file provided")
 
-# ----------- Keyword Scoring -----------
-def score_keywords(text, keywords):
-    hits = [kw for kw in keywords if kw.lower() in text.lower()]
-    return len(hits) / len(keywords), hits
+    filename = file_storage.filename
+    if not allowed_file(filename):
+        raise ValueError("File type not allowed")
 
-# ----------- Semantic Matching using GPT or Fallback -----------
-def semantic_match(expected, actual):
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a strict teacher grading answers."},
-                {
-                    "role": "user",
-                    "content": (
-                        f"Compare:\nExpected: {expected}\nStudent: {actual}\n"
-                        "Reply with 'Correct' or 'Incorrect'."
-                    )
-                }
-            ],
-            temperature=0
-        )
-        reply = response.choices[0].message.content.strip().lower()
-        return 1.0 if 'correct' in reply else 0.0
-    except Exception as e:
-        print("OpenAI error, falling back to string similarity:", e)
-        return SequenceMatcher(None, expected, actual).ratio()
+    unique_filename = generate_unique_filename(filename)
 
-# ----------- Optional: SentenceTransformer similarity -----------
-def semantic_similarity(student_text, guide_text):
-    emb_student = model.encode(student_text, convert_to_tensor=True)
-    emb_guide = model.encode(guide_text, convert_to_tensor=True)
-    return util.pytorch_cos_sim(emb_student, emb_guide).item()
+    dir_path = upload_root / subfolder / str(test_id)
+    if student_id:
+        dir_path = dir_path / str(student_id)
 
-# ----------- Placeholder Answer Extraction -----------
-def extract_answer_for_question(full_text, question):
-    return full_text
+    dir_path.mkdir(parents=True, exist_ok=True)
 
-# ----------- Grading Pipeline -----------
-def grade_submission(image_path, guide: MarkingGuide, student_name,
-                     output_dir='uploads/marked'):
-    student_text = extract_text_from_image(image_path)
-    guide_answers = guide.get_answers_list()
-    all_scores = []
-    question_scores = {}
+    file_path = dir_path / unique_filename
+    file_storage.save(str(file_path))
 
-    for idx, q in enumerate(guide_answers, start=1):
-        question = q.get("question", f"Question {idx}")
-        ideal = q.get("ideal_answer", "")
-        student_answer = extract_answer_for_question(student_text, question)
+    relative_path = file_path.relative_to(upload_root)
+    return str(relative_path)
 
-        kw_score, kw_hits = score_keywords(student_answer, KEYWORDS)
-        sim_score = semantic_match(ideal, student_answer)
-        final_score = round((0.5 * kw_score + 0.5 * sim_score) * 100, 2)
 
-        all_scores.append(final_score)
-
-        feedback = (
-            f"Keywords matched: {', '.join(kw_hits) if kw_hits else 'None'}. "
-            f"Semantic score: {sim_score*100:.1f}%."
-        )
-
-        question_scores[f"Question {idx}"] = {
-            "answer": student_answer,
-            "score": final_score,
-            "feedback": feedback,
-            "matched_keywords": kw_hits,
-            "keyword_score": round(kw_score * 100, 2),
-            "semantic_score": round(sim_score * 100, 2)
-        }
-
-    overall_score = round(sum(all_scores) / len(all_scores), 2) if all_scores else 0.0
-
-    os.makedirs(output_dir, exist_ok=True)
-    annotated_path = os.path.join(output_dir, f"{uuid.uuid4().hex}_annotated.jpg")
-    pdf_path = os.path.join(output_dir, f"{uuid.uuid4().hex}_report.pdf")
-
-    try:
-        annotate_image(image_path, guide_answers, question_scores, annotated_path)
-    except Exception as e:
-        print("Annotation failed:", e)
-        annotated_path = None
-
-    create_pdf_report(
-        student_name, guide.title, question_scores,
-        overall_score, pdf_path, annotated_path
-    )
-
-    return {
-        "total_score": overall_score,
-        "question_scores": question_scores,
-        "annotated_file": annotated_path,
-        "pdf_report": pdf_path
+def create_test_directories(test_id):
+    """
+    Creates the required directories for a given test_id
+    under answers/, rubrics/, guides/, submissions/ base folders.
+    """
+    base_folders = {
+        'answers': current_app.config.get('UPLOAD_FOLDER_ANSWERS'),
+        'rubrics': current_app.config.get('UPLOAD_FOLDER_RUBRICS'),
+        'guides': current_app.config.get('UPLOAD_FOLDER_GUIDES'),
+        'submissions': current_app.config.get('UPLOAD_FOLDER_SUBMISSIONS'),
     }
 
-# ----------- Image Annotation (Tick/Cross) -----------
-def annotate_image(image_path, guide_answers, question_scores, output_path):
-    img = cv2.imread(image_path)
-    if img is None:
-        raise ValueError(f"Cannot load image from {image_path}")
+    for subfolder, base_path_str in base_folders.items():
+        if not base_path_str:
+            current_app.logger.error(f"Upload folder for {subfolder} not configured!")
+            continue
+        base_path = Path(base_path_str)
+        path = base_path / str(test_id)
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            current_app.logger.info(f"Created directory: {path}")
+        except Exception as e:
+            current_app.logger.error(f"Failed to create directory {path}: {e}")
 
-    boxes = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
 
-    for i in range(len(boxes['text'])):
-        word = boxes['text'][i].strip()
-        x, y = boxes['left'][i], boxes['top'][i]
+# -------------------- Reusable Path Helpers --------------------
 
-        for q_data in question_scores.values():
-            if word and word.lower() in q_data["answer"].lower():
-                mark = "✅" if q_data["score"] >= 60 else "❌"
-                color = (0, 255, 0) if q_data["score"] >= 60 else (0, 0, 255)
-                cv2.putText(
-                    img, mark, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.2,
-                    color, 2
-                )
-                break
+def get_uploads_root() -> Path:
+    """Returns the root upload path from config or 'uploads' as default."""
+    return Path(current_app.config.get('UPLOAD_FOLDER', 'uploads'))
 
-    cv2.imwrite(output_path, img)
 
-# ----------- PDF Report Generator -----------
-class FeedbackPDF(FPDF):
-    def header(self):
-        self.set_font("Arial", "B", 14)
-        self.cell(0, 10, "Graded Report", ln=True, align="C")
-        self.ln(10)
+def get_submission_path(test_id: str, student_id: str) -> Path:
+    return get_uploads_root() / "submissions" / test_id / student_id
 
-    def student_info(self, student_name, guide_name):
-        self.set_font("Arial", "", 12)
-        self.cell(0, 10, f"Student: {student_name}", ln=True)
-        self.cell(0, 10, f"Marking Guide: {guide_name}", ln=True)
-        self.ln(5)
 
-    def add_scores(self, question_scores):
-        self.set_font("Arial", "B", 12)
-        self.cell(0, 10, "Question-wise Breakdown", ln=True)
-        self.set_font("Arial", "", 12)
-        for question, data in question_scores.items():
-            score = data.get("score", "N/A")
-            feedback = data.get("feedback", "")
-            answer = data.get("answer", "")
-            self.cell(0, 10, f"{question}: {score}/100", ln=True)
-            self.set_font("Arial", "I", 10)
-            self.multi_cell(0, 8, f"Your Answer: {answer}\nFeedback: {feedback}")
-            self.set_font("Arial", "", 12)
-        self.ln(5)
+def get_submission_file_path(test_id: str, student_id: str, filename: str) -> Path:
+    return get_submission_path(test_id, student_id) / filename
 
-    def final_score(self, total):
-        self.set_font("Arial", "B", 14)
-        self.cell(0, 10, f"Total Score: {total:.2f}%", ln=True)
 
-    def add_image(self, image_path):
-        if os.path.exists(image_path):
-            self.image(image_path, x=10, y=self.get_y(), w=180)
-            self.ln(90)
+def get_marked_script_path(test_id: str, student_id: str, page_no: int) -> Path:
+    return get_uploads_root() / "marked" / test_id / student_id / f"page_{page_no}_marked.png"
 
-def create_pdf_report(student_name, guide_name, question_scores,
-                      total_score, output_path, annotated_img_path=None):
-    pdf = FeedbackPDF()
-    pdf.add_page()
-    pdf.student_info(student_name, guide_name)
-    pdf.add_scores(question_scores)
-    pdf.final_score(total_score)
-    if annotated_img_path:
-        pdf.ln(10)
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "Annotated Answer Sheet:", ln=True)
-        pdf.add_image(annotated_img_path)
-    pdf.output(output_path)
 
-# ----------- New: grade_answers helper -----------
-def grade_answers(student_text, guide: MarkingGuide):
-    guide_answers = guide.get_answers_list()
-    question_scores = {}
+def get_test_assets_path(test_id: str) -> Path:
+    return get_uploads_root() / "tests" / test_id / "assets"
 
-    for idx, q in enumerate(guide_answers, start=1):
-        question = q.get("question", f"Question {idx}")
-        ideal = q.get("ideal_answer", "")
-        student_answer = extract_answer_for_question(student_text, question)
 
-        kw_score, kw_hits = score_keywords(student_answer, KEYWORDS)
-        sim_score = semantic_match(ideal, student_answer)
-        final_score = round((0.5 * kw_score + 0.5 * sim_score) * 100, 2)
+def get_test_definition_path(test_id: str) -> Path:
+    return get_uploads_root() / "tests" / test_id / "test_definition.json"
 
-        feedback = (
-            f"Keywords matched: {', '.join(kw_hits) if kw_hits else 'None'}. "
-            f"Semantic score: {sim_score*100:.1f}%."
-        )
 
-        question_scores[f"Question {idx}"] = {
-            "answer": student_answer,
-            "score": final_score,
-            "feedback": feedback,
-            "matched_keywords": kw_hits,
-            "keyword_score": round(kw_score * 100, 2),
-            "semantic_score": round(sim_score * 100, 2)
-        }
+def get_feedback_path(test_id: str, student_id: str) -> Path:
+    return get_uploads_root() / "feedback" / test_id / f"{student_id}.json"
 
-    return question_scores
+
+def get_grading_metadata_path(test_id: str, student_id: str) -> Path:
+    return get_uploads_root() / "grading" / test_id / f"{student_id}_grading.json"
+
+
+# -------------------- Added Helper Function --------------------
+
+def is_released(test_id: str) -> bool:
+    """
+    Check if the test is released by reading metadata.json inside the test folder.
+    Expects metadata.json at: <UPLOAD_FOLDER>/tests/<test_id>/metadata.json
+    """
+    metadata_path = get_uploads_root() / "tests" / str(test_id) / "metadata.json"
+    if not metadata_path.exists():
+        return False
+    try:
+        with metadata_path.open('r') as f:
+            metadata = json.load(f)
+        return metadata.get('released', False)
+    except Exception as e:
+        current_app.logger.error(f"Failed to read metadata file {metadata_path}: {e}")
+        return False

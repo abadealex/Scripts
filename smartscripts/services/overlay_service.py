@@ -8,24 +8,17 @@ OVERLAY_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'sta
 def load_overlay_image(type_: str) -> np.ndarray:
     """
     Load tick or cross image with alpha channel.
-
-    Args:
-        type_ (str): 'tick' or 'cross'
-
-    Returns:
-        np.ndarray: The overlay image with alpha channel
     """
     if type_ not in ['tick', 'cross']:
         raise ValueError("Overlay type must be 'tick' or 'cross'")
 
     path = os.path.join(OVERLAY_DIR, f'{type_}.png')
-
     if not os.path.exists(path):
         raise FileNotFoundError(f"Overlay image not found at: {path}")
 
     overlay = cv2.imread(path, cv2.IMREAD_UNCHANGED)
     if overlay is None or overlay.shape[2] != 4:
-        raise ValueError(f"Overlay image must exist and have 4 channels (including alpha).")
+        raise ValueError(f"Overlay image must have 4 channels (including alpha).")
 
     return overlay
 
@@ -33,13 +26,6 @@ def load_overlay_image(type_: str) -> np.ndarray:
 def rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
     """
     Rotate image around its center by given angle in degrees.
-
-    Args:
-        img (np.ndarray): Image to rotate
-        angle (float): Rotation angle in degrees
-
-    Returns:
-        np.ndarray: Rotated image
     """
     (h, w) = img.shape[:2]
     center = (w // 2, h // 2)
@@ -47,52 +33,69 @@ def rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
     return cv2.warpAffine(img, matrix, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
 
 
+def smart_position(center: tuple[int, int], overlay_shape: tuple[int, int], image_shape: tuple[int, int]) -> tuple[int, int]:
+    """
+    Calculate top-left corner from center position, clamped to image boundaries.
+    """
+    cx, cy = center
+    h, w = overlay_shape
+    img_h, img_w = image_shape[:2]
+    x = max(0, min(cx - w // 2, img_w - w))
+    y = max(0, min(cy - h // 2, img_h - h))
+    return x, y
+
+
 def add_overlay(
     image: np.ndarray,
     overlay_type: str,
-    position: tuple = (10, 10),
+    position: tuple[int, int] = (10, 10),
     scale: float | str = 0.15,
     rotation_deg: float = 0,
+    centered: bool = False,
     strict: bool = True
 ) -> np.ndarray:
     """
-    Adds tick or cross overlay to an image with optional scaling and rotation.
+    Adds tick or cross overlay to an image with optional scaling, rotation, centering.
 
     Args:
         image (np.ndarray): Input image (BGR or grayscale)
         overlay_type (str): 'tick' or 'cross'
-        position (tuple): (x, y) top-left placement
-        scale (float | str): Scaling factor or "auto" for 5% of image width
+        position (tuple): Placement (x, y) or center if centered=True
+        scale (float | str): Scaling factor or "auto" for ~5% of image width
         rotation_deg (float): Degrees to rotate overlay
-        strict (bool): If False, errors are logged instead of raised
+        centered (bool): If True, position is treated as center of overlay
+        strict (bool): If False, suppresses errors and logs warnings
 
     Returns:
-        np.ndarray: Image with overlay
+        np.ndarray: Image with overlay applied
     """
     try:
         overlay = load_overlay_image(overlay_type)
 
-        # Convert grayscale to BGR
+        # Convert grayscale to BGR if needed
         if len(image.shape) == 2 or image.shape[2] == 1:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
-        # Auto scaling
+        # Resize overlay
         if scale == "auto":
-            target_dim = int(min(image.shape[0], image.shape[1]) * 0.05)
-            overlay = cv2.resize(overlay, (target_dim, target_dim), interpolation=cv2.INTER_AREA)
-        else:
+            base = int(min(image.shape[:2]) * 0.05)
+            overlay = cv2.resize(overlay, (base, base), interpolation=cv2.INTER_AREA)
+        elif isinstance(scale, (float, int)) and 0 < scale <= 2:
             h, w = overlay.shape[:2]
             overlay = cv2.resize(overlay, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        else:
+            raise ValueError("Scale must be a float between 0 and 2 or 'auto'")
 
-        if rotation_deg != 0:
+        if rotation_deg:
             overlay = rotate_image(overlay, rotation_deg)
 
-        # Separate overlay channels
         overlay_rgb = overlay[..., :3]
         alpha_mask = overlay[..., 3:] / 255.0
 
-        x, y = position
         h, w = overlay_rgb.shape[:2]
+        x, y = position
+        if centered:
+            x, y = smart_position((x, y), (h, w), image.shape)
 
         if y + h > image.shape[0] or x + w > image.shape[1]:
             raise ValueError("Overlay does not fit in image at specified position.")
@@ -110,20 +113,25 @@ def add_overlay(
     return image
 
 
-def annotate_batch(images: list[np.ndarray], overlay_type: str, positions: list[tuple], **kwargs) -> list[np.ndarray]:
+def annotate_batch(
+    images: list[np.ndarray],
+    overlay_type: str,
+    positions: list[tuple[int, int]],
+    **kwargs
+) -> list[np.ndarray]:
     """
-    Annotate multiple images with overlays (e.g., batch-correct answers).
+    Annotate multiple images with overlay symbols.
 
     Args:
-        images (list): List of input images
+        images (list): List of images
         overlay_type (str): 'tick' or 'cross'
-        positions (list): List of (x, y) tuples per image
-        kwargs: Extra arguments passed to `add_overlay`
+        positions (list): List of (x, y) tuples (can be centers if centered=True)
+        kwargs: Passed to add_overlay()
 
     Returns:
-        list: Annotated images
+        list: List of annotated images
     """
-    annotated = []
+    result = []
     for img, pos in zip(images, positions):
-        annotated.append(add_overlay(img, overlay_type, position=pos, **kwargs))
-    return annotated
+        result.append(add_overlay(img, overlay_type, position=pos, **kwargs))
+    return result

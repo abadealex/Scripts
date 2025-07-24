@@ -46,11 +46,11 @@ def export_manual_corrections(csv_filepath: str = "manual_corrections.csv"):
     corrections = AuditLog.query.filter_by(action="manual_override").all()
     with open(csv_filepath, mode='w', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(["question_id", "old_text", "new_text", "reviewer", "timestamp"])
+        writer.writerow(["question_id", "new_text", "new_text", "reviewer", "timestamp"])
         for c in corrections:
             writer.writerow([
                 c.question_id or "",
-                (c.old_text or "").replace('"', '""'),
+                (c.new_text or "").replace('"', '""'),
                 (c.new_text or "").replace('"', '""'),
                 c.user_id or "",
                 c.timestamp.isoformat() if c.timestamp else ""

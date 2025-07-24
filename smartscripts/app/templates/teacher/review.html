@@ -1,39 +1,57 @@
 {% extends "base.html" %}
-
-{% block title %}Manual Review{% endblock %}
+{% block title %}Review Submission - {{ test.title }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2>Manual Review: {{ submission.student.name }}</h2>
-  <form method="POST" action="{{ url_for('teacher_bp.manual_review_submit', submission_id=submission_id) }}">
-    {% for item in submission_data %}
-      <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <strong>Question {{ item.number }}</strong>
-          <small class="text-muted">AI Score: {{ item.ai_score }} / {{ item.max_score }}</small>
-        </div>
-        <div class="card-body">
-          <p><strong>Expected Answer:</strong> {{ item.expected }}</p>
-          <p><strong>Student Answer:</strong> {{ item.student_answer }}</p>
+<h1>🔍 Review Submission for Test: {{ test.title }}</h1>
+<p>Date: {{ test.date.strftime('%Y-%m-%d') }}</p>
 
-          <div class="mb-3">
-            <label for="score_{{ item.number }}" class="form-label">Override Score:</label>
-            <input type="number" id="score_{{ item.number }}" name="score_{{ item.number }}" class="form-control"
-                   min="0" max="{{ item.max_score }}" value="{{ item.ai_score }}">
-          </div>
+<!-- Teacher Materials -->
+<h3>📘 Marking Guide</h3>
+{% if file_guide_url %}
+  <p><a href="{{ file_guide_url }}" target="_blank">View Marking Guide</a></p>
+{% else %}
+  <p><em>No marking guide uploaded.</em></p>
+{% endif %}
 
-          <div class="mb-3">
-            <label for="comment_{{ item.number }}" class="form-label">Feedback:</label>
-            <textarea id="comment_{{ item.number }}" name="comment_{{ item.number }}" class="form-control" rows="2">{{ item.feedback or '' }}</textarea>
-          </div>
-        </div>
-      </div>
-    {% endfor %}
-    
-    <div class="mt-3">
-      <button type="submit" class="btn btn-primary">Submit Review</button>
-      <a href="{{ url_for('teacher_bp.dashboard') }}" class="btn btn-secondary ms-2">Cancel</a>
-    </div>
-  </form>
-</div>
+<h3>📄 Rubric</h3>
+{% if file_rubric_url %}
+  <p><a href="{{ file_rubric_url }}" target="_blank">View Rubric</a></p>
+{% else %}
+  <p><em>No rubric uploaded.</em></p>
+{% endif %}
+
+<h3>🧾 Answered Script</h3>
+{% if answered_script_url %}
+  <p><a href="{{ answered_script_url }}" target="_blank">View Answered Script</a></p>
+{% else %}
+  <p><em>No answered script uploaded.</em></p>
+{% endif %}
+
+<h3>📄 Student Submission</h3>
+{% if submission_url %}
+  <p><a href="{{ submission_url }}" target="_blank">📄 View Submission File</a></p>
+{% else %}
+  <p><em>No submission file uploaded.</em></p>
+{% endif %}
+
+<hr>
+
+<!-- Manual Review Form -->
+<h3>✍️ Manual Review</h3>
+<form method="POST" action="{{ url_for('teacher_bp.manual_review_submit', submission_id=submission.id) }}">
+  {{ csrf_token() }}
+  
+  <div class="form-group">
+    <label for="grade">Grade:</label>
+    <input type="number" step="0.1" class="form-control" name="grade" id="grade"
+           value="{{ submission.grade or '' }}" required>
+  </div>
+
+  <div class="form-group">
+    <label for="comments">Feedback:</label>
+    <textarea class="form-control" name="comments" id="comments" rows="5" required>{{ submission.feedback or '' }}</textarea>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Submit Review</button>
+</form>
 {% endblock %}

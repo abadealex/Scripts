@@ -9,16 +9,19 @@ def string_similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
 
-def match_keywords(student_answer: str, rubric_keywords: List[Dict[str, Any]]) -> Tuple[float, List[str]]:
+def match_keywords(student_answer: str, rubric_keywords: List[Dict[str, Any]]) -> Tuple[float, List[str], List[str]]:
     matched_keywords = []
+    explanations = []
     score = 0.0
 
     for keyword in rubric_keywords:
         if keyword["keyword"].lower() in student_answer.lower():
             matched_keywords.append(keyword["keyword"])
             score += keyword.get("weight", 1.0)
+            if "explanation" in keyword:
+                explanations.append(keyword["explanation"])
 
-    return score, matched_keywords
+    return score, matched_keywords, explanations
 
 
 def evaluate_question(
@@ -30,9 +33,9 @@ def evaluate_question(
     threshold: float = 0.75
 ) -> Dict[str, Any]:
     """
-    Scores a single question using keyword match and similarity.
+    Scores a single question using keyword match, similarity, and explanation feedback.
 
-    Returns a dict with marks, feedback, matched keywords, and method used.
+    Returns a dict with marks, feedback, matched keywords, similarity, and explanations.
     """
     student_answer = clean_text(student_answer or "")
     if not student_answer:
@@ -40,22 +43,24 @@ def evaluate_question(
             "score": 0.0,
             "feedback": "No answer provided.",
             "matched_keywords": [],
-            "similarity": 0.0
+            "similarity": 0.0,
+            "explanations": []
         }
 
-    # Check similarity against all expected answers
+    # Check similarity
     best_similarity = 0.0
     for expected in expected_answers:
         cleaned = clean_text(expected)
         sim = compute_similarity(student_answer, cleaned) if method == "semantic" else string_similarity(student_answer, cleaned)
         best_similarity = max(best_similarity, sim)
 
-    # Score by keywords if rubric is provided
+    # Score using keyword rubric if available
     rubric_score = 0.0
     matched_keywords = []
+    explanations = []
 
     if rubric_keywords:
-        rubric_score, matched_keywords = match_keywords(student_answer, rubric_keywords)
+        rubric_score, matched_keywords, explanations = match_keywords(student_answer, rubric_keywords)
         score = min(rubric_score, max_marks)
         feedback = (
             f"Matched {len(matched_keywords)} keyword(s)." if matched_keywords
@@ -76,20 +81,21 @@ def evaluate_question(
         "score": round(score, 2),
         "feedback": feedback,
         "similarity": round(best_similarity, 2),
-        "matched_keywords": matched_keywords
+        "matched_keywords": matched_keywords,
+        "explanations": explanations
     }
 
 
 def grade_submission_using_guide(student_answers: List[str], guide: List[Dict[str, Any]], method: str = "semantic") -> Dict[str, Any]:
     """
-    Grades all answers using a structured guide (rubric).
+    Grades a full submission using a structured guide with rubrics and explanations.
 
-    Each rubric entry:
+    Each guide item format:
     {
         "id": "q1",
         "question": "...",
         "answers": ["...", "..."],
-        "rubric": [{"keyword": "...", "weight": 1.0}, ...],
+        "rubric": [{"keyword": "...", "weight": 1.0, "explanation": "..."}, ...],
         "max_marks": 2.0
     }
     """
@@ -116,7 +122,8 @@ def grade_submission_using_guide(student_answers: List[str], guide: List[Dict[st
             "question_id": guide_item.get("id", f"q{idx+1}"),
             "student_answer": student_ans,
             "expected_answers": expected,
-            "max_marks": max_marks
+            "max_marks": max_marks,
+            "question": guide_item.get("question", "")
         })
 
         total_score += result["score"]
@@ -149,20 +156,20 @@ def generate_summary_feedback(per_question_results: List[Dict[str, Any]]) -> str
     return "You got: " + ", ".join(parts) + "." if parts else "No answers provided."
 
 
-# ======= Backward compatible aliases for legacy tests =======
+# ======= Backward compatibility support =======
 
 def calculate_score(answer: str, keywords: List[str], max_score: float) -> float:
-    """Simple fallback scoring: used in basic tests."""
+    """Simple fallback scoring for unit tests."""
     matched = sum(1 for kw in keywords if kw.lower() in (answer or "").lower())
     return round((matched / len(keywords)) * max_score, 2) if keywords else 0.0
 
 
 def grade_answer(answer: str, rubric: Dict[str, Any]) -> Dict[str, Any]:
-    """Wrapper for backward compatibility with test_grading.py."""
+    """Legacy support for older grading tests."""
     return evaluate_question(
         student_answer=answer,
         expected_answers=rubric.get("answers", []),
         rubric_keywords=rubric.get("rubric", []),
         max_marks=rubric.get("max_marks", 1.0),
-        method="semantic"  # or "keyword" if preferred
+        method="semantic"
     )

@@ -1,0 +1,91 @@
+{% extends "teacher/base.html" %}
+{% block title %}Review Extracted Students - {{ test.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>📋 Review Extracted Students for Test: {{ test.name }}</h2>
+    <p class="text-muted">Please confirm or correct each student’s information before grading.</p>
+
+    <form method="POST" action="{{ url_for('teacher_bp.confirm_extracted_students', test_id=test.id) }}">
+      {{ csrf_token() }}
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Page Range</th>
+              <th>Name <small class="text-muted">(editable)</small></th>
+              <th>ID <small class="text-muted">(editable)</small></th>
+              <th>Confirmed</th>
+              <th>Preview</th>
+              <th>Flags</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for script in extracted_scripts %}
+            <tr class="{% if not script.student_name or not script.student_id %}table-warning{% endif %}">
+              <td>{{ script.page_range or (script.page_start ~ '–' ~ script.page_end) or "N/A" }}</td>
+
+              <td>
+                <input
+                  type="text"
+                  name="script_{{ script.id }}_name"
+                  value="{{ script.student_name or '' }}"
+                  class="form-control {% if not script.student_name %}is-invalid{% endif %}"
+                  required
+                >
+              </td>
+
+              <td>
+                <input
+                  type="text"
+                  name="script_{{ script.id }}_student_id"
+                  value="{{ script.student_id or '' }}"
+                  class="form-control {% if not script.student_id %}is-invalid{% endif %}"
+                  required
+                >
+              </td>
+
+              <td class="text-center">
+                <input
+                  type="checkbox"
+                  name="script_{{ script.id }}_confirmed"
+                  {% if script.confirmed %}checked{% endif %}
+                >
+              </td>
+
+              <td class="text-center">
+                {% if script.extracted_pdf_filename %}
+                <a href="{{ url_for('file_routes_bp.uploaded_file', filename=script.extracted_pdf_filename) }}" target="_blank" title="View extracted PDF">
+                  📄 View
+                </a>
+                {% else %}
+                <span class="text-muted">N/A</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if not script.student_name %}
+                <span class="badge bg-danger">Missing Name</span>
+                {% endif %}
+                {% if not script.student_id %}
+                <span class="badge bg-warning text-dark">Missing ID</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center">No extracted student scripts found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-3 d-flex justify-content-between align-items-center">
+        <button type="submit" class="btn btn-primary">✅ Save & Proceed</button>
+        <a href="{{ url_for('teacher_bp.review_test', test_id=test.id) }}" class="btn btn-secondary">← Back to Test Review</a>
+      </div>
+    </form>
+</div>
+{% endblock %}

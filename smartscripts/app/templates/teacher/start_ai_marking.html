@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Start AI Marking{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="text-center">
+        <h2 class="mb-4">✅ Test Materials Uploaded Successfully!</h2>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="alert alert-info">
+              {% for message in messages %}
+                <div>{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <p class="lead">You're all set to begin AI-powered marking of the submitted student scripts.</p>
+
+        <!-- OCR Trigger Button -->
+        <button onclick="startOCR({{ test_id }})" class="btn btn-success btn-lg mt-3">
+            🚀 Start AI Marking
+        </button>
+
+        <!-- Progress Bar -->
+        <div id="ocr-progress-container" class="mt-4" style="display: none;">
+            <div class="progress">
+                <div id="ocr-progress-bar"
+                     class="progress-bar progress-bar-striped progress-bar-animated"
+                     role="progressbar"
+                     style="width: 0%">0%</div>
+            </div>
+        </div>
+
+        <!-- View Extracted Scripts Button -->
+        <div id="ocr-complete-controls" style="display: none; margin-top: 20px;">
+          <a id="view-extracted-btn" href="#" class="btn btn-success">
+            👀 View Extracted Scripts
+          </a>
+        </div>
+
+        <!-- Back to Dashboard -->
+        <div class="mt-4">
+            <a href="{{ url_for('teacher_bp.dashboard') }}" class="btn btn-outline-secondary">← Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for OCR polling -->
+<script>
+function pollOCRStatus(taskId, testId) {
+    const progressBar = document.getElementById('ocr-progress-bar');
+    const container = document.getElementById('ocr-progress-container');
+    const completeControls = document.getElementById('ocr-complete-controls');
+    const viewBtn = document.getElementById('view-extracted-btn');
+
+    container.style.display = 'block';
+
+    function updateStatus() {
+        fetch(`/task_status/${taskId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.state === 'PROGRESS') {
+                    const percent = data.status.progress || 0;
+                    progressBar.style.width = percent + '%';
+                    progressBar.innerText = percent + '%';
+                    setTimeout(updateStatus, 1000);
+                } else if (data.state === 'SUCCESS') {
+                    progressBar.style.width = '100%';
+                    progressBar.innerText = '✅ Complete';
+
+                    // Show "View Extracted Scripts" button
+                    viewBtn.href = `/teacher/review_extracted_list/${testId}`;
+                    completeControls.style.display = 'block';
+
+                    // Auto redirect after 5 seconds (optional)
+                    setTimeout(() => {
+                        window.location.href = `/teacher/review_extracted_list/${testId}`;
+                    }, 5000);
+                } else if (data.state === 'FAILURE') {
+                    progressBar.classList.add('bg-danger');
+                    progressBar.innerText = '❌ Failed';
+                }
+            });
+    }
+
+    updateStatus();
+}
+
+function startOCR(testId) {
+    fetch(`/run_ocr/${testId}`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            pollOCRStatus(data.task_id, testId);
+        });
+}
+</script>
+{% endblock %}

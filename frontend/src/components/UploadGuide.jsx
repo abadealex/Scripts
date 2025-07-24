@@ -1,9 +1,9 @@
-import api from '../services/api';
 import React, { useState } from 'react';
-import axios from '../services/api';
+import api from '../services/api'; // Correct import
 
 const UploadGuide = () => {
   const [file, setFile] = useState(null);
+  const [testId, setTestId] = useState('');
   const [uploadStatus, setUploadStatus] = useState('');
 
   const handleFileChange = (e) => {
@@ -12,21 +12,24 @@ const UploadGuide = () => {
   };
 
   const handleUpload = async () => {
-    if (!file) {
-      setUploadStatus('Please select a file first.');
+    if (!file || !testId) {
+      setUploadStatus('Please select a file and enter Test ID.');
       return;
     }
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file);         // 👈 Matches request.files['file']
+    formData.append('test_id', testId);    // 👈 Matches request.form['test_id']
 
     try {
       setUploadStatus('Uploading...');
-      const response = await api.('/api/student/upload-guide', formData, {
+      const response = await api.post('/teacher/upload_script', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+
       setUploadStatus('Upload successful!');
       setFile(null);
+      setTestId('');
     } catch (error) {
       setUploadStatus('Upload failed. Please try again.');
       console.error(error);
@@ -36,15 +39,21 @@ const UploadGuide = () => {
   return (
     <div className="p-4 max-w-md mx-auto">
       <h2 className="text-xl font-bold mb-4">Upload Guide</h2>
-      <p className="mb-4">
-        Please upload your marking guide here. Accepted formats: PDF, DOCX.
-      </p>
+      <p className="mb-2">Accepted formats: PDF, DOCX</p>
 
       <input
         type="file"
         onChange={handleFileChange}
-        className="mb-4"
+        className="mb-2"
         accept=".pdf,.docx"
+      />
+
+      <input
+        type="text"
+        placeholder="Enter Test ID"
+        value={testId}
+        onChange={(e) => setTestId(e.target.value)}
+        className="mb-4 block w-full border px-2 py-1"
       />
 
       <button
@@ -62,5 +71,3 @@ const UploadGuide = () => {
 };
 
 export default UploadGuide;
-
-

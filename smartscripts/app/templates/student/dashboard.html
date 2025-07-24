@@ -4,7 +4,10 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h2 class="mb-4">📄 My Submissions</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>📄 My Submissions</h2>
+        <a href="{{ url_for('auth_bp.logout') }}" class="btn btn-danger">Logout</a>
+    </div>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -15,6 +18,25 @@
         </div>
       {% endif %}
     {% endwith %}
+
+    {# Upload section hidden because enable_upload = False #}
+    {% if enable_upload %}
+    <section id="upload-section" class="mb-5">
+        <h3>Upload Your Submission</h3>
+        <form action="{{ url_for('student_bp.student_upload') }}" method="post" enctype="multipart/form-data" class="mt-3">
+            {{ form.hidden_tag() }}
+            <div class="mb-3">
+                {{ form.file.label(class="form-label") }}
+                {{ form.file(class="form-control") }}
+            </div>
+            <div class="mb-3">
+                {{ form.guide_id.label(class="form-label") }}
+                {{ form.guide_id(class="form-select") }}
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+    </section>
+    {% endif %}
 
     {% if submissions %}
     <div class="table-responsive">
@@ -52,6 +74,7 @@
                         {% endif %}
                     </td>
                     <td>
+                        {# Download links only if available #}
                         {% if sub.marked_file_path %}
                             <a href="{{ url_for('static', filename=sub.marked_file_path) }}"
                                class="btn btn-sm btn-outline-primary"
@@ -59,7 +82,7 @@
                                 📥 Marked File
                             </a>
                         {% else %}
-                            <span class="text-muted">Not Available</span>
+                            <span class="text-muted">No Marked File</span>
                         {% endif %}
 
                         {% if sub.feedback_pdf_path %}
@@ -79,6 +102,15 @@
                         {% else %}
                             <span class="text-muted ms-2">No Report</span>
                         {% endif %}
+
+                        {# View detailed feedback button #}
+                        {% if sub.guide and sub.guide.test_id %}
+                            <a href="{{ url_for('student_bp.view_feedback', test_id=sub.guide.test_id, student_id=sub.student_id) }}"
+                               class="btn btn-sm btn-info ms-2"
+                               title="View detailed feedback">
+                                🧐 View Feedback
+                            </a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -86,7 +118,7 @@
         </table>
     </div>
     {% else %}
-        <p class="text-muted text-center">You haven’t submitted any answer sheets yet.</p>
+        <p class="text-muted text-center">You have no submissions or results yet.</p>
     {% endif %}
 </div>
 {% endblock %}

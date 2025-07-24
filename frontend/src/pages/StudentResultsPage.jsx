@@ -1,7 +1,5 @@
-// src/pages/StudentResultsPage.jsx
-
 import React, { useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
+import { Link, useNavigate } from 'react-router-dom';
 import FeedbackOverlay from '../components/FeedbackOverlay';
 import api from '../services/api';
 
@@ -9,6 +7,8 @@ const StudentResultsPage = () => {
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const navigate = useNavigate();
 
   // Fetch submission data on mount
   useEffect(() => {
@@ -31,6 +31,11 @@ const StudentResultsPage = () => {
     if (!ts) return 'N/A';
     const date = new Date(ts);
     return date.toLocaleString();
+  };
+
+  const handleReviewClick = () => {
+    // Navigate to ReviewPage (adjust route as needed)
+    navigate('/review');
   };
 
   if (loading) return <p className="text-center mt-5">Loading...</p>;
@@ -60,8 +65,13 @@ const StudentResultsPage = () => {
         <p className="text-muted">No graded image available.</p>
       )}
 
-      <div className="mt-4">
-        <a href="/student/dashboard" className="btn btn-primary">← Back to Dashboard</a>
+      <div className="mt-4 d-flex gap-2">
+        <button className="btn btn-success" onClick={handleReviewClick}>
+          Go to Review Page
+        </button>
+        <Link to="/student/dashboard" className="btn btn-primary">
+          ← Back to Dashboard
+        </Link>
       </div>
     </div>
   );

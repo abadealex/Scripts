@@ -10,6 +10,26 @@ const TeacherDashboard = () => {
     });
   }, []);
 
+  const handleDelete = async (submissionId) => {
+    if (!window.confirm('Are you sure you want to delete this submission?')) return;
+
+    try {
+      const response = await fetch(`/api/v1/submissions/${submissionId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('Submission deleted');
+        setSubmissions(prev => prev.filter(s => s.id !== submissionId));
+      } else {
+        const err = await response.json();
+        alert(`Error: ${err.error}`);
+      }
+    } catch (e) {
+      alert('Network error while deleting submission');
+    }
+  };
+
   return (
     <div className="p-4">
       <h2 className="text-xl font-bold mb-2">Teacher Dashboard</h2>
@@ -19,6 +39,7 @@ const TeacherDashboard = () => {
             <th className="border p-2">Student</th>
             <th className="border p-2">Score</th>
             <th className="border p-2">View</th>
+            <th className="border p-2">Actions</th> {/* ✅ New column */}
           </tr>
         </thead>
         <tbody>
@@ -36,6 +57,14 @@ const TeacherDashboard = () => {
                   View
                 </a>
               </td>
+              <td className="border p-2">
+                <button
+                  onClick={() => handleDelete(s.id)}
+                  className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                >
+                  Delete
+                </button>
+              </td> {/* ✅ Delete button */}
             </tr>
           ))}
         </tbody>

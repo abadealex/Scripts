@@ -1,14 +1,19 @@
-// components/Footer.jsx
-export default function Footer() {
+// src/components/Footer.jsx
+import React from 'react';
+
+const Footer = () => {
   return (
-    <footer className="bg-gray-900 text-gray-300 py-8 px-6 text-center text-sm">
-      <div className="container mx-auto flex flex-col md:flex-row justify-center space-x-6">
-        <a href="/about" className="hover:text-white">About</a>
-        <a href="/docs" className="hover:text-white">Docs</a>
-        <a href="/privacy" className="hover:text-white">Privacy</a>
-        <a href="https://github.com/yourrepo" target="_blank" rel="noreferrer" className="hover:text-white">GitHub</a>
+    <footer className="bg-gray-800 text-white py-8">
+      <div className="max-w-7xl mx-auto px-4 text-center">
+        <p>&copy; 2025 SmartScripts. All rights reserved.</p>
+        <div className="mt-4 space-x-4">
+          <a href="/terms" className="text-white hover:text-blue-600">Terms</a>
+          <a href="/privacy" className="text-white hover:text-blue-600">Privacy</a>
+          <a href="/contact" className="text-white hover:text-blue-600">Contact</a>
+        </div>
       </div>
-      <p className="mt-4">&copy; {new Date().getFullYear()} SmartScripts</p>
     </footer>
   );
-}
+};
+
+export default Footer;

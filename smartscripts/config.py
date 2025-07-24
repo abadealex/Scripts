@@ -1,38 +1,44 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env for local development
+# Load environment variables
 load_dotenv()
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+# Project base directory
+BASE_DIR = Path(__file__).resolve().parent
+
+# Allowed file extensions
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'}
 
 
-class Config:
+class BaseConfig:
     # --- General ---
-    SECRET_KEY = os.getenv('SECRET_KEY')
+    SECRET_KEY = os.getenv('SECRET_KEY', 'your-default-secret-key')
     if not SECRET_KEY:
-        raise RuntimeError("SECRET_KEY environment variable not set!")
+        raise RuntimeError("SECRET_KEY is not set in the environment!")
 
-    print(f"[DEBUG] SECRET_KEY loaded: {SECRET_KEY[:6]}...")
+    DEBUG = False
+    TESTING = False
+    ENABLE_SUBMISSIONS = os.getenv('ENABLE_SUBMISSIONS', 'True').lower() in ['true', '1', 'yes']
 
     # --- Logging ---
-    LOG_DIR = os.path.join(BASE_DIR, 'logs')
-    os.makedirs(LOG_DIR, exist_ok=True)
-    LOG_FILE = os.path.join(LOG_DIR, 'app.log')
+    LOG_DIR = Path(os.getenv('LOGS_DIR', BASE_DIR / 'logs'))
+    LOG_FILE = LOG_DIR / 'app.log'
 
-    # --- SQLAlchemy ---
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # --- Upload Base Folder ---
+    UPLOAD_FOLDER = BASE_DIR / 'static' / 'uploads'  # Can be overridden in child configs
 
-    # --- Uploads ---
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
-    UPLOAD_FOLDER_GUIDES = os.path.join(UPLOAD_FOLDER, 'guides')
-    UPLOAD_FOLDER_ANSWERS = os.path.join(UPLOAD_FOLDER, 'answers')
-    UPLOAD_FOLDER_MARKED = os.path.join(UPLOAD_FOLDER, 'marked')
-    UPLOAD_FOLDER_RUBRICS = os.path.join(UPLOAD_FOLDER, 'rubrics')
-    UPLOAD_FOLDER_BULK = os.path.join(UPLOAD_FOLDER, 'bulk')
+    # These will be finalized below
+    UPLOAD_FOLDER_GUIDES = None
+    UPLOAD_FOLDER_RUBRICS = None
+    UPLOAD_FOLDER_ANSWERS = None
+    UPLOAD_FOLDER_SUBMISSIONS = None
+    UPLOAD_FOLDER_AUDIT_LOGS = None
 
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload size
+    # --- File Settings ---
+    ALLOWED_EXTENSIONS = ALLOWED_EXTENSIONS
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB
 
     # --- Mail ---
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
@@ -42,19 +48,11 @@ class Config:
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = ('CoGrader', MAIL_USERNAME)
 
-    if not MAIL_USERNAME or not MAIL_PASSWORD:
-        print("[WARNING] MAIL_USERNAME or MAIL_PASSWORD not set. Email features may fail.")
-
-    # --- AI & API Keys ---
+    # --- AI Keys ---
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
     HUGGINGFACE_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
     TROCR_MODEL = os.getenv('TROCR_MODEL', 'microsoft/trocr-base-handwritten')
     GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4')
-
-    if not OPENAI_API_KEY:
-        print("[WARNING] OPENAI_API_KEY not set. GPT features may not work.")
-    if not HUGGINGFACE_API_KEY:
-        print("[WARNING] HUGGINGFACE_API_KEY not set. TrOCR features may not work.")
 
     # --- Celery ---
     CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
@@ -62,29 +60,62 @@ class Config:
     CELERY_TASK_TRACK_STARTED = True
     CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 
-    # --- Flags ---
-    DEBUG = False
-    TESTING = False
+    # --- SQLAlchemy ---
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    @classmethod
+    def init_upload_dirs(cls):
+        cls.UPLOAD_FOLDER_GUIDES = cls.UPLOAD_FOLDER / 'marking_guides'
+        cls.UPLOAD_FOLDER_RUBRICS = cls.UPLOAD_FOLDER / 'rubrics'
+        cls.UPLOAD_FOLDER_ANSWERS = cls.UPLOAD_FOLDER / 'answered_scripts'
+        cls.UPLOAD_FOLDER_SUBMISSIONS = cls.UPLOAD_FOLDER / 'student_scripts'
+        cls.UPLOAD_FOLDER_AUDIT_LOGS = cls.UPLOAD_FOLDER / 'audit_logs'
+
+        for folder in [
+            cls.UPLOAD_FOLDER,
+            cls.UPLOAD_FOLDER_GUIDES,
+            cls.UPLOAD_FOLDER_RUBRICS,
+            cls.UPLOAD_FOLDER_ANSWERS,
+            cls.UPLOAD_FOLDER_SUBMISSIONS,
+            cls.UPLOAD_FOLDER_AUDIT_LOGS,
+            cls.LOG_DIR,
+        ]:
+            folder.mkdir(parents=True, exist_ok=True)
 
 
-class DevelopmentConfig(Config):
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///db.sqlite3')
+class DevelopmentConfig(BaseConfig):
     DEBUG = True
     TESTING = True
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', f"sqlite:///{BASE_DIR / 'dev.sqlite3'}")
+
+    # Custom path for dev uploads
+    UPLOAD_FOLDER = BASE_DIR / 'static' / 'uploads'
+    BaseConfig.init_upload_dirs()
 
 
-class ProductionConfig(Config):
+class ProductionConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
-    DEBUG = False
-    TESTING = False
-
     if not SQLALCHEMY_DATABASE_URI:
-        raise RuntimeError("DATABASE_URL environment variable not set for Production!")
+        raise RuntimeError("DATABASE_URL must be set in production!")
+
+    # Use mounted Docker volume or external path
+    UPLOAD_FOLDER = Path(os.getenv('UPLOAD_FOLDER', '/app/uploads'))
+    BaseConfig.init_upload_dirs()
 
 
-# --- Flask configuration map ---
+class TestingConfig(BaseConfig):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+
+    # Separate folder to isolate test artifacts
+    UPLOAD_FOLDER = BASE_DIR / 'test_uploads'
+    BaseConfig.init_upload_dirs()
+
+
+# Config loader for app factory
 config_by_name = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,
+    'testing': TestingConfig,
     'default': DevelopmentConfig,
 }

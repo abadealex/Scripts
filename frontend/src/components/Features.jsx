@@ -1,20 +1,28 @@
-// components/Features.jsx
-const features = [
-  { icon: '🧠', title: 'AI Scoring', desc: 'Automatically score student answers with AI-powered precision.' },
-  { icon: '📷', title: 'OCR Extraction', desc: 'Extract text from images and handwritten notes seamlessly.' },
-  { icon: '✍️', title: 'Manual Review', desc: 'Easily review and adjust scores manually when needed.' },
-];
+// src/components/Features.jsx
+import React from 'react';
 
-export default function Features() {
+const Features = () => {
   return (
-    <section className="container mx-auto px-6 py-16 grid md:grid-cols-3 gap-10 text-center">
-      {features.map(({ icon, title, desc }) => (
-        <div key={title} className="bg-white rounded-lg p-8 shadow-md">
-          <div className="text-6xl mb-4">{icon}</div>
-          <h3 className="text-xl font-semibold mb-2">{title}</h3>
-          <p className="text-gray-600">{desc}</p>
+    <section className="py-16 bg-white">
+      <div className="max-w-7xl mx-auto px-4 text-center">
+        <h2 className="text-3xl font-semibold text-gray-800">Features</h2>
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-10">
+          <div className="p-6 bg-blue-50 rounded-lg shadow-md">
+            <h3 className="text-2xl font-semibold text-blue-600">AI Scoring</h3>
+            <p className="mt-4 text-gray-600">Instantly evaluate answers with advanced AI</p>
+          </div>
+          <div className="p-6 bg-blue-50 rounded-lg shadow-md">
+            <h3 className="text-2xl font-semibold text-blue-600">OCR Extraction</h3>
+            <p className="mt-4 text-gray-600">Extract text from scanned handwritten responses</p>
+          </div>
+          <div className="p-6 bg-blue-50 rounded-lg shadow-md">
+            <h3 className="text-2xl font-semibold text-blue-600">Manual Review</h3>
+            <p className="mt-4 text-gray-600">Easily review and adjust scores as needed</p>
+          </div>
         </div>
-      ))}
+      </div>
     </section>
   );
-}
+};
+
+export default Features;

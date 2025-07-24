@@ -1,47 +1,50 @@
 {% extends "base.html" %}
+
 {% block title %}Grading Analytics{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-  <h2>Grading Analytics for {{ exam_title }}</h2>
+  <h2 class="mb-4">Grading Analytics for {{ exam_title }}</h2>
 
-  <div class="row mt-3">
+  <div class="row">
     {% for metric in analytics_data %}
-      <div class="col-md-4 mb-3">
-        <div class="card text-white bg-info h-100">
+      <div class="col-md-4 mb-4">
+        <div class="card text-white bg-info shadow-sm h-100">
           <div class="card-body">
             <h5 class="card-title">{{ metric.title }}</h5>
-            <p class="card-text">{{ metric.value }}</p>
+            <p class="card-text display-6">{{ metric.value }}</p>
           </div>
         </div>
       </div>
     {% endfor %}
   </div>
 
-  <h4 class="mt-4">Per-Question Statistics</h4>
-  <table class="table table-bordered mt-2">
-    <thead>
-      <tr>
-        <th>Question #</th>
-        <th>Average Score</th>
-        <th>Max Score</th>
-        <th>Attempts</th>
-        <th>Flagged</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for q in question_stats %}
+  <h4 class="mt-5">Per-Question Statistics</h4>
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover mt-2">
+      <thead class="table-light">
         <tr>
-          <td>{{ q.number }}</td>
-          <td>{{ q.avg_score }}</td>
-          <td>{{ q.max_score }}</td>
-          <td>{{ q.attempts }}</td>
-          <td>{{ "Yes" if q.flagged else "No" }}</td>
+          <th>Question #</th>
+          <th>Average Score</th>
+          <th>Max Score</th>
+          <th>Attempts</th>
+          <th>Flagged</th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for q in question_stats %}
+          <tr>
+            <td>{{ q.number }}</td>
+            <td>{{ q.avg_score }}</td>
+            <td>{{ q.max_score }}</td>
+            <td>{{ q.attempts }}</td>
+            <td>{{ "Yes" if q.flagged else "No" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
-  <a href="{{ url_for('teacher_bp.dashboard') }}" class="btn btn-secondary mt-3">Back</a>
+  <a href="{{ url_for('teacher_bp.dashboard') }}" class="btn btn-secondary mt-4">Back to Dashboard</a>
 </div>
 {% endblock %}

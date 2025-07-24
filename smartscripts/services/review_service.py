@@ -7,8 +7,8 @@ from smartscripts.extensions import db    # SQLAlchemy session
 def log_manual_review(
     reviewer_id: str,
     question_id: str,
-    old_text: str,
-    new_text: str,
+    original_text: str,
+    corrected_text: str,
     feedback: Optional[str] = None,
     comment: Optional[str] = None
 ):
@@ -19,8 +19,8 @@ def log_manual_review(
         user_id=reviewer_id,
         question_id=question_id,
         action="manual_override",
-        old_text=old_text,
-        new_text=new_text,
+        original_text=original_text,
+        corrected_text=corrected_text,
         feedback=feedback,
         comment=comment,
         timestamp=datetime.utcnow()
@@ -38,8 +38,8 @@ def get_review_history(question_id: str) -> list:
         {
             "reviewer": log.user_id,
             "timestamp": log.timestamp.isoformat(),
-            "old_text": log.old_text,
-            "new_text": log.new_text,
+            "original_text": log.original_text,
+            "corrected_text": log.corrected_text,
             "feedback": log.feedback,
             "comment": log.comment
         }
@@ -60,23 +60,20 @@ def get_override(question_id: str, reviewer_id: Optional[str] = None):
 def set_override(
     reviewer_id: str,
     question_id: str,
-    old_text: str,
-    new_text: str,
+    original_text: str,
+    corrected_text: str,
     feedback: Optional[str] = None,
     comment: Optional[str] = None
 ):
     """
     Create and save a new manual override entry.
-
-    Returns:
-        The newly created AuditLog object.
     """
     override_log = AuditLog(
         user_id=reviewer_id,
         question_id=question_id,
         action="manual_override",
-        old_text=old_text,
-        new_text=new_text,
+        original_text=original_text,
+        corrected_text=corrected_text,
         feedback=feedback,
         comment=comment,
         timestamp=datetime.utcnow()
@@ -96,25 +93,21 @@ def process_teacher_review(
 ):
     """
     Process a teacher's review by logging it and setting an override.
-
-    This function combines the logging and setting override steps.
     """
-    # Log the manual review (audit trail)
     log_manual_review(
         reviewer_id=reviewer_id,
         question_id=question_id,
-        old_text=original_text,
-        new_text=corrected_text,
+        original_text=original_text,
+        corrected_text=corrected_text,
         feedback=feedback,
         comment=comment,
     )
 
-    # Create or update the override
     override = set_override(
         reviewer_id=reviewer_id,
         question_id=question_id,
-        old_text=original_text,
-        new_text=corrected_text,
+        original_text=original_text,
+        corrected_text=corrected_text,
         feedback=feedback,
         comment=comment,
     )

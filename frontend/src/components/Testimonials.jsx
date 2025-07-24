@@ -1,20 +1,22 @@
-// components/Testimonials.jsx
-const testimonials = [
-  { quote: 'Saved hours each week!', author: 'A Real Teacher' },
-];
+// src/components/Testimonials.jsx
 
-export default function Testimonials() {
+import React from 'react';
+
+const Testimonials = () => {
   return (
-    <section className="bg-blue-50 py-16 px-6 text-center">
-      <h2 className="text-3xl font-bold mb-8">Testimonials</h2>
-      <div className="max-w-2xl mx-auto text-gray-700 italic">
-        {testimonials.map(({ quote, author }, idx) => (
-          <blockquote key={idx} className="mb-6">
-            “{quote}” <br />
-            <span className="font-semibold text-blue-700">— {author}</span>
-          </blockquote>
-        ))}
+    <section id="testimonials" className="py-16 bg-white">
+      <div className="container mx-auto text-center">
+        <h2 className="text-3xl font-semibold text-gray-900">Trusted by Teachers Worldwide</h2>
+        <p className="mt-4 text-xl text-gray-600">Used by over 1,000 educators in 10+ countries</p>
+        <div className="d-flex justify-content-center gap-4 flex-wrap mt-8">
+          <img src="https://via.placeholder.com/100x40?text=School+1" alt="School Logo" />
+          <img src="https://via.placeholder.com/100x40?text=School+2" alt="School Logo" />
+          <img src="https://via.placeholder.com/100x40?text=College+3" alt="College Logo" />
+          <img src="https://via.placeholder.com/100x40?text=District+4" alt="District Logo" />
+        </div>
       </div>
     </section>
   );
-}
+};
+
+export default Testimonials;

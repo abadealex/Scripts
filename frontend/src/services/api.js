@@ -1,8 +1,8 @@
-// src/services/api.js
 import axios from 'axios';
 
+// Create an Axios instance with base URL and credentials
 const api = axios.create({
-  baseURL: '/api/',      // Matches Flask's /api prefix (relative path for dev & prod)
+  baseURL: '/api/',      // Matches Flask's /api prefix (relative path works for dev & prod)
   withCredentials: true, // Enables auth/session cookies
 });
 
@@ -10,6 +10,17 @@ const api = axios.create({
 export const login = (credentials) => api.post('auth/login', credentials);
 export const logout = () => api.post('auth/logout');
 export const getCurrentUser = () => api.get('auth/user');
+
+// Upload helper for submission files (your original function, adapted to use api instance)
+export const uploadSubmissions = (testId, files) => {
+  const formData = new FormData();
+  for (let i = 0; i < files.length; i++) {
+    formData.append('files', files[i]);
+  }
+  return api.post(`v1/submissions/upload/${testId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
 
 // Bulk upload APIs
 export const uploadBulkFiles = (formData, onUploadProgress) => {

@@ -1,31 +1,54 @@
 import os
 import sys
+import asyncio
+import logging
+import hypercorn.asyncio
+from hypercorn.config import Config
 
-# Ensure the parent directory is in the Python path
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+# ---------- Enable detailed logging ----------
+logging.basicConfig(
+    level=logging.DEBUG,  # Set to DEBUG to capture everything
+    format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+)
 
-from smartscripts.app import create_app
+# Add the parent directory to the Python path so 'smartscripts' can be imported
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from smartscripts.app import create_app  # Must come after sys.path adjustment
 
 # Get config name from environment, default to 'development'
 config_name = os.getenv('FLASK_CONFIG', 'development')
+logging.debug(f"Using config: {config_name}")
 
-# This must be available at the top level so Hypercorn can see it
+# Create the Flask app instance
 app = create_app(config_name)
 
-# Only use app.run() for local debugging with Hypercorn
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    debug = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
-    
-    # Run the application using Hypercorn instead of Flask's built-in server
-    import hypercorn.asyncio
-    from hypercorn.config import Config
-    import asyncio
+    """
+    Run the Flask app asynchronously with Hypercorn HTTP/2 server.
+    Configurable via environment variables:
+      - PORT: port to listen on (default 5000)
+      - FLASK_DEBUG: enable debug mode (default False)
+      - FLASK_CONFIG: config name passed to app factory (default 'development')
+    """
 
-    # Setup Hypercorn config
+    port = int(os.getenv("PORT", 5000))
+    debug_env = os.getenv('FLASK_DEBUG', 'false').lower()
+    debug = debug_env in ('true', '1', 'yes')
+
+    host = os.getenv("HOST", "0.0.0.0")
+
+    # Log resolved runtime config
+    logging.info(f"Starting server on {host}:{port} (debug={debug})")
+
+    # Configure Hypercorn server
     hypercorn_config = Config()
-    hypercorn_config.bind = [f"0.0.0.0:{port}"]
+    hypercorn_config.bind = [f"{host}:{port}"]
     hypercorn_config.debug = debug
+    hypercorn_config.reload = debug  # Enable auto reload in debug mode
 
-    # Run the app with Hypercorn
-    asyncio.run(hypercorn.asyncio.serve(app, hypercorn_config))
+    try:
+        asyncio.run(hypercorn.asyncio.serve(app, hypercorn_config))
+    except Exception as e:
+        logging.exception("Failed to start server")
+        sys.exit(1)

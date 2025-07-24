@@ -5,6 +5,7 @@ import api from '../services/api';
 
 const BulkUploadForm = () => {
   const [files, setFiles] = useState([]);
+  const [batchName, setBatchName] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
 
@@ -14,8 +15,13 @@ const BulkUploadForm = () => {
   };
 
   const handleUpload = async () => {
-    if (files.length === 0) return;
+    if (files.length === 0 || batchName.trim() === '') {
+      alert('Please provide a batch name and select files.');
+      return;
+    }
+
     const formData = new FormData();
+    formData.append('batch_name', batchName);
     files.forEach(file => formData.append('files', file));
 
     try {
@@ -30,6 +36,8 @@ const BulkUploadForm = () => {
         },
       });
       alert('Upload successful!');
+      setFiles([]);
+      setBatchName('');
     } catch (error) {
       alert('Upload failed.');
       console.error(error);
@@ -40,14 +48,26 @@ const BulkUploadForm = () => {
 
   return (
     <div className={styles.uploadForm}>
-      <h2>Bulk Upload Student Scripts</h2>
+      <h2>📁 Bulk Upload Student Scripts</h2>
+
+      <input
+        type="text"
+        placeholder="Enter Batch Name"
+        value={batchName}
+        onChange={(e) => setBatchName(e.target.value)}
+        className={styles.textInput}
+        disabled={uploading}
+      />
+
       <input
         type="file"
         className={styles.fileInput}
         multiple
         accept=".zip,image/*,application/pdf"
         onChange={handleFileChange}
+        disabled={uploading}
       />
+
       <button
         className={styles.uploadButton}
         onClick={handleUpload}

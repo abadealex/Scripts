@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if test %}Upload Materials for {{ test.title }}{% else %}Create Test and Upload Materials{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <h2 class="mb-4 text-primary">
+    📘 {% if test %}Upload Materials for Test: <strong>{{ test.title }}</strong>{% else %}Create Test and Upload Materials{% endif %}
+  </h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category or 'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if form.errors %}
+    <div class="alert alert-danger">
+      <ul class="mb-0">
+        {% for field, errors in form.errors.items() %}
+          {% for error in errors %}
+            <li><strong>{{ form[field].label.text }}:</strong> {{ error }}</li>
+          {% endfor %}
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="POST" enctype="multipart/form-data" novalidate id="uploadForm"
+        data-user-role="{{ current_user.role }}"
+        action="{{ form_action }}">
+    {{ form.hidden_tag() }}
+
+    {% if not test %}
+      <!-- Test Creation -->
+      <div class="mb-4">
+        {{ form.test_title.label(class="form-label fw-semibold") }}
+        {{ form.test_title(class="form-control", placeholder="Enter test title", required=True) }}
+      </div>
+      <div class="mb-4">
+        {{ form.description.label(class="form-label fw-semibold") }}
+        {{ form.description(class="form-control", placeholder="Short description", rows=3) }}
+      </div>
+      <div class="row mb-4">
+        <div class="col-md-6">
+          {{ form.subject.label(class="form-label fw-semibold") }}
+          {{ form.subject(class="form-select", required=True) }}
+        </div>
+        <div class="col-md-6">
+          {{ form.grade_level.label(class="form-label fw-semibold") }}
+          {{ form.grade_level(class="form-select", required=True) }}
+        </div>
+      </div>
+    {% else %}
+      <!-- Read-only Preview -->
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Test Title</label>
+        <input type="text" class="form-control-plaintext fs-5 fw-bold" readonly value="{{ test.title }}">
+        <input type="hidden" name="test_title" value="{{ test.title }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Description</label>
+        <textarea class="form-control-plaintext" rows="3" readonly>{{ test.description or '-' }}</textarea>
+        <input type="hidden" name="description" value="{{ test.description }}">
+      </div>
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Subject</label>
+          <input type="text" class="form-control-plaintext" readonly value="{{ test.subject }}">
+          <input type="hidden" name="subject" value="{{ test.subject }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Grade Level</label>
+          <input type="text" class="form-control-plaintext" readonly value="{{ test.grade_level }}">
+          <input type="hidden" name="grade_level" value="{{ test.grade_level }}">
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Marking Guide -->
+    <div class="mb-4">
+      {{ form.marking_guide.label(class="form-label fw-semibold") }} <span class="text-danger">*</span>
+      {{ form.marking_guide(class="form-control", accept=".pdf", required=True) }}
+      {% for error in form.marking_guide.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <!-- Optional -->
+    <div class="mb-4">
+      {{ form.rubric.label(class="form-label fw-semibold") }}
+      {{ form.rubric(class="form-control", accept=".pdf") }}
+    </div>
+    <div class="mb-4">
+      {{ form.answered_script.label(class="form-label fw-semibold") }}
+      {{ form.answered_script(class="form-control", accept=".pdf") }}
+    </div>
+
+    <!-- Student Scripts -->
+    <div class="mb-4">
+      <label class="form-label fw-semibold">{{ form.student_scripts.label.text }}</label>
+      <div id="fileDrop" role="button" tabindex="0" class="border rounded p-4 text-center"
+           style="cursor:pointer; background-color:#f9f9f9; border: 2px dashed #6c757d;"
+           aria-label="Drop student scripts here or click to select"
+           aria-describedby="fileDropHelp">
+        <p id="fileDropHelp" class="text-muted mb-0">
+          Drag & drop student scripts here or click to select
+          <small>(PDF, DOC, DOCX, PNG, JPG, JPEG allowed)</small>
+        </p>
+        {{ form.student_scripts(class="form-control", id="fileInput", multiple=True, style="display:none;", accept=".pdf,.doc,.docx,.png,.jpg,.jpeg") }}
+        <ul id="fileList" class="list-group list-group-flush mt-3" aria-live="polite"></ul>
+      </div>
+    </div>
+
+    <!-- Dynamic Student IDs -->
+    <div id="studentIdsContainer" class="mb-4"></div>
+
+    <!-- Submit -->
+    <div class="d-flex align-items-center mb-4">
+      <button id="submitBtn" type="submit" class="btn btn-primary me-3 d-flex align-items-center">
+        <span id="btnText">Upload</span>
+        <span id="spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+      </button>
+      <a href="{{ url_for('teacher_bp.dashboard') }}" class="btn btn-secondary">Back</a>
+    </div>
+  </form>
+
+  <!-- OCR Section -->
+  <button id="start-ocr-btn" class="btn btn-success mb-3">Start OCR</button>
+  <div id="ocr-progress-container" style="display:none; margin-top:10px;">
+    <label><strong>Processing OCR:</strong></label>
+    <div class="progress" style="height: 25px;">
+      <div id="ocr-progress-bar" class="progress-bar" role="progressbar" style="width: 0%;">0%</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const fileDrop = document.getElementById('fileDrop');
+  const fileInput = document.getElementById('fileInput');
+  const fileList = document.getElementById('fileList');
+  const studentIdsContainer = document.getElementById('studentIdsContainer');
+  const uploadForm = document.getElementById('uploadForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const btnText = document.getElementById('btnText');
+  const spinner = document.getElementById('spinner');
+
+  fileDrop.addEventListener('click', () => fileInput.click());
+  fileDrop.addEventListener('keydown', e => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); fileInput.click(); } });
+  fileDrop.addEventListener('dragover', e => { e.preventDefault(); fileDrop.style.backgroundColor = '#e3f2fd'; });
+  fileDrop.addEventListener('dragleave', e => { e.preventDefault(); fileDrop.style.backgroundColor = '#f9f9f9'; });
+  fileDrop.addEventListener('drop', e => {
+    e.preventDefault(); 
+    fileDrop.style.backgroundColor = '#f9f9f9';
+    fileInput.files = e.dataTransfer.files;
+    updateFileList();
+    updateStudentIdInputs();
+  });
+  fileInput.addEventListener('change', () => { updateFileList(); updateStudentIdInputs(); });
+
+  function formatFileSize(size) {
+    return size < 1024 * 1024 ? Math.round(size / 1024) + ' KB' : (size / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  function updateFileList() {
+    fileList.innerHTML = '';
+    Array.from(fileInput.files).forEach((file, i) => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+      const icon = file.name.match(/\.pdf$/i) ? '📕' :
+                   file.name.match(/\.(jpg|jpeg|png)$/i) ? '🖼️' :
+                   file.name.match(/\.(doc|docx)$/i) ? '📃' : '📄';
+      li.innerHTML = `<span>${icon} <strong>${file.name}</strong> (${formatFileSize(file.size)})</span>
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile(${i})">Remove</button>`;
+      fileList.appendChild(li);
+    });
+  }
+
+  function updateStudentIdInputs() {
+    studentIdsContainer.innerHTML = '';
+    Array.from(fileInput.files).forEach((file, i) => {
+      const div = document.createElement('div');
+      div.className = 'mb-3';
+      div.innerHTML = `
+        <label for="student_id_${i}" class="form-label fw-semibold">
+          Student ID for "<em>${file.name}</em>" <span class="text-danger">*</span>
+        </label>
+        <input type="text" name="student_ids[]" id="student_id_${i}" class="form-control" required placeholder="Enter student ID">
+      `;
+      studentIdsContainer.appendChild(div);
+    });
+  }
+
+  function removeFile(index) {
+    const dt = new DataTransfer();
+    Array.from(fileInput.files).forEach((file, i) => {
+      if (i !== index) dt.items.add(file);
+    });
+    fileInput.files = dt.files;
+    updateFileList();
+    updateStudentIdInputs();
+  }
+
+  uploadForm.addEventListener('submit', e => {
+    if (!uploadForm.marking_guide.value) {
+      e.preventDefault();
+      alert('Marking guide file is required.');
+      return;
+    }
+    if (!fileInput.files.length) {
+      e.preventDefault();
+      alert('Please upload at least one student script.');
+      return;
+    }
+    const studentIdInputs = studentIdsContainer.querySelectorAll('input[name="student_ids[]"]');
+    for (const input of studentIdInputs) {
+      if (!input.value.trim()) {
+        e.preventDefault();
+        alert('Please fill in all student ID fields.');
+        input.focus();
+        return;
+      }
+    }
+
+    submitBtn.disabled = true;
+    btnText.textContent = 'Uploading...';
+    spinner.classList.remove('d-none');
+  });
+
+  const ocrBtn = document.getElementById('start-ocr-btn');
+  const ocrProgressContainer = document.getElementById('ocr-progress-container');
+  const ocrProgressBar = document.getElementById('ocr-progress-bar');
+
+  ocrBtn.addEventListener('click', () => {
+    if (!fileInput.files.length) {
+      alert('Please upload student scripts before starting OCR.');
+      return;
+    }
+    ocrBtn.disabled = true;
+    ocrProgressContainer.style.display = 'block';
+    ocrProgressBar.style.width = '0%';
+    ocrProgressBar.textContent = '0%';
+
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 10;
+      ocrProgressBar.style.width = progress + '%';
+      ocrProgressBar.textContent = progress + '%';
+      if (progress >= 100) {
+        clearInterval(interval);
+        alert('OCR processing complete!');
+        ocrBtn.disabled = false;
+        ocrProgressContainer.style.display = 'none';
+      }
+    }, 500);
+  });
+</script>
+{% endblock %}

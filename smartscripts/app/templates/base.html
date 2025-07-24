@@ -1,116 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>{% block title %}CoGrader - Marking System{% endblock %}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="AI-powered student marking and grading system" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}My App{% endblock %}</title>
 
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Bootstrap CSS (can switch to CDN or local if needed) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 
-    <style>
-        .alert-success {
-            background-color: #d4edda;
-            padding: 10px;
-            border-radius: 5px;
-            color: #155724;
-        }
-        .alert-danger {
-            background-color: #f8d7da;
-            padding: 10px;
-            border-radius: 5px;
-            color: #721c24;
-        }
-        .alert-info {
-            background-color: #cce5ff;
-            padding: 10px;
-            border-radius: 5px;
-            color: #004085;
-        }
-        .navbar-brand {
-            font-size: 1.5rem;
-        }
-        .nav-link {
-            font-weight: 500;
-        }
-    </style>
+  <!-- Custom Styles Block -->
+  {% block styles %}
+  {% endblock %}
 </head>
 <body>
 
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
-  <div class="container">
-    <a class="navbar-brand" href="{{ url_for('main_bp.index') }}">📘 CoGrader</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav ms-auto">
-        {% if current_user.is_authenticated %}
+  <!-- Navbar (Optional) -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{{ url_for('main_bp.index') }}">My App</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('main_bp.dashboard') }}">Dashboard</a>
+            <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
           </li>
-
-          {% if current_user.role == 'teacher' %}
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="teacherMenu" role="button" data-bs-toggle="dropdown"
-                 aria-expanded="false">
-                Teacher Tools
-              </a>
-              <ul class="dropdown-menu" aria-labelledby="teacherMenu">
-                <li><a class="dropdown-item" href="{{ url_for('teacher_bp.upload_guide') }}">Upload Guide</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('teacher_bp.rubric') }}">Rubric Upload</a></li>  <!-- Updated this line -->
-                <li><a class="dropdown-item" href="{{ url_for('teacher_bp.analytics') }}">Analytics Dashboard</a></li>
-              </ul>
-            </li>
-          {% elif current_user.role == 'student' %}
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('student_bp.student_upload') }}">Submit Work</a>
-            </li>
-          {% endif %}
-
-          <li class="nav-item">
-            <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">Logout</a>
-          </li>
-        {% else %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
-          </li>
-        {% endif %}
-      </ul>
-    </div>
-  </div>
-</nav>
-
-<!-- Main content -->
-<div class="container mt-5 pt-4">
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <div class="flashes mb-3">
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }}">{{ message }}</div>
-        {% endfor %}
+        </ul>
       </div>
-    {% endif %}
-  {% endwith %}
+    </div>
+  </nav>
 
-  {% block content %}{% endblock %}
-</div>
+  <!-- Main Content Block -->
+  {% block content %}
+  {% endblock %}
 
-<!-- Footer -->
-<footer class="text-center mt-5 mb-3 text-muted">
-  &copy; 2025 CoGrader System
-</footer>
+  <!-- Bootstrap JS (Optional) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-{% block scripts %}{% endblock %}
-
+  {% block scripts %}
+  {% endblock %}
 </body>
 </html>

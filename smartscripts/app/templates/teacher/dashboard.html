@@ -1,119 +1,214 @@
 {% extends "base.html" %}
 
-{% block title %}
-    Teacher Dashboard
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block styles %}
+<style>
+  body {
+    background-color: #f8f9fa !important; /* add !important if base styles override */
+  }
+  .card {
+    border-radius: 1rem;
+  }
+  .btn-success {
+    background-color: #28a745;
+    border: none;
+    font-weight: bold;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <h2 class="mb-4">📊 Your Uploaded Guides & Student Submissions</h2>
+  <h1 class="mb-4 text-primary">👩‍🏫 Teacher Dashboard</h1>
+  <p class="lead">Welcome, <strong>{{ teacher_name }}</strong>!</p>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="alert alert-info">
-                {% for category, message in messages %}
-                    <div>{{ message }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
-
-    <!-- Filters for guides -->
-    <div>
-        <form method="GET" action="{{ url_for('teacher_bp.dashboard') }}">
-            <label for="guide_id">Filter by Guide:</label>
-            <select name="guide_id" id="guide_id" class="form-select">
-                <option value="">All Guides</option>
-                {% for entry in guides_with_submissions %}
-                    <option value="{{ entry.guide.id }}" {% if selected_guide == entry.guide.id %} selected {% endif %}>
-                        {{ entry.guide.title }}
-                    </option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-primary mt-3">Filter</button>
-        </form>
+  <!-- Create Test Form -->
+  <div class="card mb-5 shadow-sm border-primary">
+    <div class="card-header bg-primary text-white">
+      <h2 class="h5 mb-0">Create New Test</h2>
     </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('teacher_bp.create_test') }}">
+        {{ form.hidden_tag() }}
 
-    <!-- Displaying guides and submissions -->
-    <div class="mt-5">
-        {% for entry in guides_with_submissions %}
-            <div class="card mb-4 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <strong>{{ entry.guide.title or "Untitled Guide" }}</strong>
-                    <small class="text-muted">
-                        {% if entry.guide.upload_date %}
-                            Uploaded: {{ entry.guide.upload_date.strftime('%Y-%m-%d') }}
-                        {% else %}
-                            Uploaded: N/A
-                        {% endif %}
-                    </small>
-                </div>
-                <div class="card-body">
-                    {% if entry.submissions %}
-                        <div class="table-responsive">
-                            <table class="table table-striped table-bordered align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Student</th>
-                                        <th>Filename</th>
-                                        <th>Grade</th>
-                                        <th>Status</th>
-                                        <th>Feedback</th>
-                                        <th>Marked File</th>
-                                        <th>Review</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for sub in entry.submissions %}
-                                        <tr>
-                                            <td>{{ sub.student.email }}</td>
-                                            <td>{{ sub.filename }}</td>
-                                            <td>{{ sub.grade if sub.grade else 'Pending' }}</td>
-                                            <td>
-                                                {% if sub.review_status == 'approved' %}
-                                                    <img src="{{ url_for('static', filename='overlays/icon_1.png') }}" alt="Approved" width="24" height="24">
-                                                {% elif sub.review_status == 'rejected' %}
-                                                    <img src="{{ url_for('static', filename='overlays/icon_2.png') }}" alt="Rejected" width="24" height="24">
-                                                {% else %}
-                                                    <img src="{{ url_for('static', filename='overlays/icon_3.png') }}" alt="Pending" width="24" height="24">
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if sub.feedback %}
-                                                    <span class="badge bg-success">Available</span>
-                                                {% else %}
-                                                    <span class="text-muted">N/A</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if sub.marked_file_path %}
-                                                    <a href="{{ url_for('static', filename=sub.marked_file_path) }}" class="btn btn-sm btn-outline-primary" download>
-                                                        📥 Download
-                                                    </a>
-                                                {% else %}
-                                                    <span class="text-muted">Not Available</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <a href="{{ url_for('teacher_bp.review', submission_id=sub.id) }}" class="btn btn-sm btn-warning">
-                                                    Manual Review
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <p class="text-muted">No submissions yet for this guide.</p>
-                    {% endif %}
-                </div>
-            </div>
-        {% endfor %}
+        <div class="mb-3">
+          {{ form.test_title.label(class="form-label") }}
+          {{ form.test_title(class="form-control", placeholder="Enter test title") }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.subject.label(class="form-label") }}
+          {{ form.subject(class="form-select") }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.grade_level.label(class="form-label") }}
+          {{ form.grade_level(class="form-select") }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.exam_date.label(class="form-label") }}
+          {{ form.exam_date(class="form-control", placeholder="YYYY-MM-DD") }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.description.label(class="form-label") }}
+          {{ form.description(class="form-control", rows="3", placeholder="Add test description") }}
+        </div>
+
+        {{ form.submit(class="btn btn-success rounded-pill px-4") }}
+      </form>
     </div>
+  </div>
 
-    {% if not guides_with_submissions %}
-        <p class="text-muted text-center">You haven’t uploaded any marking guides yet.</p>
-    {% endif %}
+  <hr>
+
+  <h2 class="mb-4 text-secondary">Your Uploaded Tests</h2>
+
+  {% if tests %}
+    <div class="row gy-4">
+      {% for test in tests %}
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm h-100 border-info">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title mb-1 text-primary">
+                {{ test.title }}
+                <small class="text-muted fs-6">({{ test.date.strftime('%Y-%m-%d') }})</small>
+              </h5>
+              <p class="card-text mb-3">
+                <span class="badge bg-info text-dark me-2">{{ test.subject }}</span>
+                <span class="badge bg-secondary">{{ test.grade_level }}</span>
+              </p>
+
+              <ul class="list-unstyled mb-4 flex-grow-1 small">
+                <li><strong>Marking Guide:</strong>
+                  {% if test.file_guide_url %}
+                    <a href="{{ test.file_guide_url }}" target="_blank" class="link-primary fw-semibold">View PDF</a>
+                  {% else %}
+                    <span class="badge bg-danger">Not uploaded</span>
+                  {% endif %}
+                </li>
+                <li><strong>Rubric:</strong>
+                  {% if test.file_rubric_url %}
+                    <a href="{{ test.file_rubric_url }}" target="_blank" class="link-primary fw-semibold">View PDF</a>
+                  {% else %}
+                    <span class="badge bg-danger">Not uploaded</span>
+                  {% endif %}
+                </li>
+                <li><strong>Answered Script:</strong>
+                  {% if test.answered_script_url %}
+                    <a href="{{ test.answered_script_url }}" target="_blank" class="link-primary fw-semibold">View PDF</a>
+                  {% else %}
+                    <span class="badge bg-danger">Not uploaded</span>
+                  {% endif %}
+                </li>
+                <li><strong>Student Submissions:</strong>
+                  {% if test.submissions and test.submissions|length > 0 %}
+                    <ul class="list-unstyled ms-3 mt-1 small">
+                      {% for submission in test.submissions %}
+                        <li>
+                          <a href="{{ submission.file_url }}" target="_blank" class="link-secondary text-decoration-underline">
+                            {{ submission.filename }}
+                          </a>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">No student submissions uploaded</span>
+                  {% endif %}
+                </li>
+              </ul>
+
+              <!-- OCR Progress UI -->
+              <div id="ocr-progress-container-{{ test.id }}" style="display:none; margin-top:20px;">
+                <label><strong>Processing OCR:</strong></label>
+                <div class="progress rounded-pill">
+                  <div id="ocr-progress-bar-{{ test.id }}" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">
+                    0%
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-auto d-flex gap-2 flex-wrap">
+                <a href="{{ url_for('teacher_bp.review_test', test_id=test.id) }}" class="btn btn-info btn-sm rounded-pill flex-grow-1 flex-md-grow-0">
+                  Review Test
+                </a>
+
+                <form method="POST" action="{{ url_for('teacher_bp.start_ai_grading', test_id=test.id) }}" class="m-0 flex-grow-1 flex-md-grow-0" onsubmit="startGrading(event, {{ test.id }})">
+                  {{ ai_grading_form.csrf_token }}
+                  <button type="submit" class="btn btn-success btn-sm rounded-pill w-100">
+                    Start AI Grading
+                  </button>
+                </form>
+
+                <form method="POST" action="{{ url_for('teacher_bp.delete_test', test_id=test.id) }}" class="m-0 flex-grow-1 flex-md-grow-0" onsubmit="return confirm('Are you sure you want to delete this test and all related submissions?');">
+                  {{ ai_grading_form.csrf_token }}
+                  <button type="submit" class="btn btn-danger btn-sm rounded-pill w-100">
+                    Delete Test
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">
+      No tests uploaded yet. <a href="{{ url_for('teacher_bp.upload_test_materials') }}" class="alert-link">Upload a new test</a>.
+    </div>
+  {% endif %}
 </div>
+
+<script>
+function startGrading(event, testId) {
+  event.preventDefault();
+  const form = event.target;
+
+  fetch(form.action, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': form.querySelector('[name=csrf_token]').value }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.task_id) {
+      pollOCRStatus(data.task_id, testId);
+    } else {
+      alert('Failed to start grading task.');
+    }
+  })
+  .catch(() => alert('Error starting task.'));
+}
+
+function pollOCRStatus(taskId, testId) {
+  const bar = document.getElementById(`ocr-progress-bar-${testId}`);
+  const container = document.getElementById(`ocr-progress-container-${testId}`);
+  container.style.display = 'block';
+
+  function updateStatus() {
+    fetch(`/task_status/${taskId}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.state === 'PROGRESS') {
+          const percent = data.status.progress || 0;
+          bar.style.width = percent + '%';
+          bar.innerText = percent + '%';
+          setTimeout(updateStatus, 1000);
+        } else if (data.state === 'SUCCESS') {
+          bar.style.width = '100%';
+          bar.innerText = '✅ Complete';
+          bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+          bar.classList.add('bg-success');
+        } else if (data.state === 'FAILURE') {
+          bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+          bar.classList.add('bg-danger');
+          bar.innerText = '❌ Failed';
+        }
+      });
+  }
+
+  updateStatus();
+}
+</script>
 {% endblock %}
