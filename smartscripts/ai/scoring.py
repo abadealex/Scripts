@@ -173,3 +173,4 @@ def grade_answer(answer: str, rubric: Dict[str, Any]) -> Dict[str, Any]:
         max_marks=rubric.get("max_marks", 1.0),
         method="semantic"
     )
+

@@ -26,7 +26,8 @@ def get_customer_portal_session(customer_id, return_url):
 
 def retrieve_event(payload, sig_header, endpoint_secret):
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+                event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
         return event
     except (ValueError, stripe.error.SignatureVerificationError):
         return None
+

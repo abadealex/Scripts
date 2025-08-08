@@ -16,3 +16,4 @@ def track_event(user_id: int, feature: str, action: str, metadata: dict = None):
 
 def get_events():
     return _engagement_events
+

@@ -1,135 +1,183 @@
-import os
+﻿import os
 import sys
 import logging
 import traceback
-from logging.handlers import RotatingFileHandler
 from datetime import datetime
-from flask import Flask, render_template
+from logging.handlers import RotatingFileHandler
+
+from flask import Flask, render_template, g, current_app
 from flask_cors import CORS
+from flask_wtf.csrf import CSRFProtect
+from sqlalchemy.exc import SQLAlchemyError
+from dotenv import load_dotenv
 from alembic.config import Config
 from alembic import command
-from dotenv import load_dotenv
-from flask_wtf.csrf import CSRFProtect
 
-# Extensions
-from smartscripts.extensions import db, login_manager, mail, migrate, celery
-from smartscripts.config import config_by_name
-
-# Your DB engine/session helper (new file)
-from smartscripts.database import get_engine, get_session
-
-# Load environment variables
+# Load .env before anything else
 load_dotenv()
 
+# Import extensions (no models here!)
+from smartscripts.extensions import db, login_manager, mail, migrate, celery, configure_login_manager
+from smartscripts.config import config_by_name
+from smartscripts.database import get_engine, get_session
+
+# Import blueprints (safe because they don’t pull models at import time)
+from smartscripts.app.auth import auth_bp
+from smartscripts.app.main import main_bp
+from smartscripts.app.teacher import teacher_bp
+from smartscripts.app.teacher.ai_marking_routes import ai_marking_bp
+from smartscripts.app.teacher.analytics_routes import analytics_bp
+from smartscripts.app.teacher.upload_routes import upload_bp
+from smartscripts.app.student import student_bp
+from smartscripts.app.admin.routes import admin_bp
+from smartscripts.app.teacher.profile_routes import teacher_profile_bp
+
 csrf = CSRFProtect()
-basedir = os.path.abspath(os.path.dirname(__file__))
-
-
-class BaseConfig:
-    UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
-    UPLOAD_FOLDER_GUIDES = os.path.join(os.path.join(basedir, 'static', 'uploads'), 'marking_guides')
-    UPLOAD_FOLDER_RUBRICS = os.path.join(os.path.join(basedir, 'static', 'uploads'), 'rubrics')
-    UPLOAD_FOLDER_ANSWERS = os.path.join(os.path.join(basedir, 'static', 'uploads'), 'answered_scripts')
-    UPLOAD_FOLDER_SUBMISSIONS = os.path.join(os.path.join(basedir, 'static', 'uploads'), 'student_scripts')
 
 
 def create_app(config_name='default'):
     app = Flask(__name__, template_folder='templates', static_folder='static')
-
-    # Setup logging before anything else
-    setup_logging(app)
-
-    # Load and update configuration
     app.config.from_object(config_by_name[config_name])
-    app.config.from_object(BaseConfig)
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', app.config.get('SECRET_KEY', 'your-default-secret-key'))
 
-    # Initialize extensions
+    # === UPLOAD FOLDER PATH ===
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, "static", "uploads")
+
+    # Ensure upload dirs exist
+    if hasattr(config_by_name[config_name], 'init_upload_dirs'):
+        config_by_name[config_name].init_upload_dirs()
+
+    # Secret key fallback
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-default-secret-key')
+
+    # === EXTENSIONS INIT ===
     csrf.init_app(app)
     db.init_app(app)
-    login_manager.init_app(app)
     mail.init_app(app)
     migrate.init_app(app, db)
     celery.conf.update(app.config)
+    configure_login_manager(app)
 
-    # CORS
+    # === CORS ===
     if config_name == 'development':
         CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
     else:
         CORS(app, supports_credentials=True)
 
-    login_manager.login_view = "auth.login"
-    login_manager.login_message = "Please log in to access this page."
-    login_manager.login_message_category = "info"
+    # === LOGGING ===
+    setup_logging(app)
 
-    # Ensure upload folders exist
+    # === Upload subfolders ===
     create_upload_folders(app)
 
-    # Initialize DB engine and session with logging
+    # === DB Engine/Session ===
     try:
         engine = get_engine(config_name)
         session = get_session(engine)
         app.db_engine = engine
         app.db_session = session
-        app.logger.info("Database engine and session initialized successfully.")
+        app.logger.info("DB engine and session initialized.")
     except Exception as e:
-        app.logger.error(f"Failed to initialize database engine/session: {e}")
+        app.logger.error(f"DB setup error: {e}")
         traceback.print_exc()
 
-    # Import models and register blueprints here to avoid circular imports
-    from smartscripts.models import User
-    from smartscripts.app.auth import auth_bp
-    from smartscripts.app.main import main_bp
-    from smartscripts.app.teacher.routes import teacher_bp
-    from smartscripts.app.student import student_bp
-    from smartscripts.app.teacher.routes.file_routes import file_routes_bp
+    @app.before_request
+    def set_session():
+        g.db_session = get_session(app.db_engine)
 
-    # Register blueprints with appropriate URL prefixes
+    @app.teardown_appcontext
+    def cleanup_session(exception=None):
+        session = g.pop('db_session', None)
+        if session:
+            try:
+                if exception:
+                    session.rollback()
+                    app.logger.warning("DB session rolled back due to exception.")
+                    app.logger.warning(traceback.format_exc())
+                session.close()
+            except Exception as e:
+                app.logger.error(f"DB session cleanup error: {e}")
+                traceback.print_exc()
+
+    # === BLUEPRINTS ===
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(teacher_bp, url_prefix='/teacher')
-    app.register_blueprint(file_routes_bp, url_prefix='/teacher/files')
+    app.register_blueprint(upload_bp, url_prefix='/upload')
     app.register_blueprint(student_bp, url_prefix='/api/student')
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(ai_marking_bp)
+    app.register_blueprint(analytics_bp)
+    app.register_blueprint(teacher_profile_bp, url_prefix='/teacher/profile')
+
+    # === USER LOADER ===
+    from smartscripts.models.user import User  # import only here to avoid circular imports
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        try:
+            return User.query.get(int(user_id))
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            current_app.logger.error(f"[load_user] DB error: {e}")
+            return None
 
-    # Auto-run migrations in development
+    # === Auto Alembic in Dev ===
     if app.config.get("ENV") == "development":
         run_alembic_migrations(app)
 
-    # Register error handlers
+    # === ERROR HANDLERS ===
     register_error_handlers(app)
 
-    # Global context processor
+    # === CONTEXT PROCESSORS ===
     @app.context_processor
     def inject_current_year():
         return {'current_year': datetime.utcnow().year}
 
-    # Shell context for flask shell
     @app.shell_context_processor
     def make_shell_context():
-        from smartscripts.models import Test, StudentSubmission
+        from smartscripts.models.test import Test
+        from smartscripts.models.student_submission import StudentSubmission
         return {'db': db, 'Test': Test, 'StudentSubmission': StudentSubmission}
 
-    app.logger.info("Application startup complete.")
+    app.logger.info("App created successfully.")
+    app.logger.info(f"Uploads folder: {app.config['UPLOAD_FOLDER']}")
     return app
 
 
 def create_upload_folders(app):
-    folders = [
-        app.config['UPLOAD_FOLDER'],
-        app.config['UPLOAD_FOLDER_GUIDES'],
-        app.config['UPLOAD_FOLDER_RUBRICS'],
-        app.config['UPLOAD_FOLDER_ANSWERS'],
-        app.config['UPLOAD_FOLDER_SUBMISSIONS'],
+    base_folder = app.config.get('UPLOAD_FOLDER')
+    if not base_folder:
+        app.logger.error("UPLOAD_FOLDER config not set!")
+        return
+
+    subfolders = [
+        "answered_scripts",
+        "audit_logs",
+        "class_lists",
+        "combined_scripts",
+        "extracted",
+        "feedback",
+        "manifests",
+        "marked",
+        "marking_guides",
+        "question_papers",
+        "resources",
+        "rubrics",
+        "student_lists",
+        "student_scripts",
+        "submissions",
+        "tmp",
+        "exports",
+        "guides",
     ]
-    for folder in folders:
+
+    for subfolder in subfolders:
         try:
-            os.makedirs(folder, exist_ok=True)
+            os.makedirs(os.path.join(base_folder, subfolder), exist_ok=True)
+            app.logger.debug(f"Ensured upload subfolder exists: {subfolder}")
         except Exception as e:
-            app.logger.error(f"Failed to create upload folder {folder}: {e}")
+            app.logger.error(f"Failed to create upload subfolder {subfolder}: {e}")
 
 
 def run_alembic_migrations(app):
@@ -137,46 +185,47 @@ def run_alembic_migrations(app):
         ini_path = os.path.abspath(os.path.join(app.root_path, '..', '..', 'alembic.ini'))
         alembic_cfg = Config(ini_path)
         command.upgrade(alembic_cfg, 'head')
-        app.logger.info("Database migrated successfully.")
+        app.logger.info("Alembic migrations applied.")
     except Exception as e:
-        app.logger.error(f"Alembic migration failed: {e}")
+        app.logger.error(f"Alembic migration error: {e}")
         traceback.print_exc()
 
 
 def setup_logging(app):
     app.logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
 
     if not any(isinstance(h, logging.StreamHandler) for h in app.logger.handlers):
         stream_handler = logging.StreamHandler(sys.stdout)
         stream_handler.setLevel(logging.DEBUG)
-        stream_formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
-        stream_handler.setFormatter(stream_formatter)
+        stream_handler.setFormatter(formatter)
         app.logger.addHandler(stream_handler)
 
-    logs_dir = app.config.get('LOG_DIR', os.path.abspath(os.path.join(app.root_path, '..', 'logs')))
+    logs_dir = app.config.get('LOG_DIR', os.path.join(app.root_path, '..', 'logs'))
     os.makedirs(logs_dir, exist_ok=True)
     log_path = os.path.join(logs_dir, 'app.log')
 
     if not any(isinstance(h, RotatingFileHandler) for h in app.logger.handlers):
         file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=5)
         file_handler.setLevel(logging.INFO)
-        file_formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
-        file_handler.setFormatter(file_formatter)
+        file_handler.setFormatter(formatter)
         app.logger.addHandler(file_handler)
 
-    app.logger.debug("Debug logging enabled.")
-    app.logger.info(f"Logging initialized. Writing logs to {log_path}")
+    app.logger.info(f"Logging initialized at {log_path}")
 
 
 def register_error_handlers(app):
     @app.errorhandler(403)
     def forbidden_error(error):
+        app.logger.warning("403 Forbidden", exc_info=error)
         return render_template("errors/403.html"), 403
 
     @app.errorhandler(404)
     def not_found_error(error):
+        app.logger.warning("404 Not Found", exc_info=error)
         return render_template("errors/404.html"), 404
 
     @app.errorhandler(500)
     def internal_error(error):
+        app.logger.error("500 Internal Server Error", exc_info=error)
         return render_template("errors/500.html"), 500

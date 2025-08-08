@@ -17,3 +17,4 @@ def print_structure(root_dir, prefix=""):
 if __name__ == "__main__":
     print("Project Structure:")
     print_structure(".")
+

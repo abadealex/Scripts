@@ -20,3 +20,4 @@ cur.close()
 conn.close()
 
 print("✅ Dropped alembic_version table successfully.")
+

@@ -19,3 +19,4 @@ def build_reasoning_trace(rubric, student_answer):
     if not trace:
         trace.append("Answer meets all rubric criteria.")
     return trace
+

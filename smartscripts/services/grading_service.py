@@ -1,7 +1,12 @@
 import os
 from typing import List, Dict, Optional
 
-from smartscripts.models import TestSubmission, db  # adjust import based on your ORM setup
+from smartscripts.models import Submission, db  # adjust import based on your ORM setup
+
+GUIDE_DIR = "uploads/guides"
+RUBRIC_DIR = "uploads/rubrics"
+SUBMISSION_DIR = "uploads/submissions"
+MARKED_DIR = "uploads/marked"
 
 
 class GradingService:
@@ -35,10 +40,26 @@ class GradingService:
         Returns:
             Dict[str, Optional[str]]: Dict containing 'grade' and 'feedback'.
         """
-        # TODO: Replace this stub with actual AI grading logic.
-        # For example, load file, run AI model, extract grade & feedback.
+        test_id = submission.test_id
+        student_id = submission.student_id
+
+        # Paths
+        submission_path = os.path.join(SUBMISSION_DIR, str(test_id), str(student_id), os.path.basename(submission.file_path))
+        guide_dir = os.path.join(GUIDE_DIR, str(test_id))
+        rubric_path = os.path.join(RUBRIC_DIR, f"{test_id}.json")
+        marked_dir = os.path.join(MARKED_DIR, str(test_id), str(student_id))
+        os.makedirs(marked_dir, exist_ok=True)
+        marked_file_path = os.path.join(marked_dir, os.path.basename(submission.file_path))
+
+        # Dummy grading logic - replace with actual
         grade = "A"  # dummy grade
         feedback = "Excellent work."  # dummy feedback
+
+        # Simulate writing annotated output
+        with open(marked_file_path, 'w') as f:
+            f.write("Annotated feedback overlay placeholder")
+
+        submission.marked_file_path = marked_file_path
 
         return {"grade": grade, "feedback": feedback}
 
@@ -60,7 +81,6 @@ class GradingService:
                 result = self.run_ai_marking(submission)
                 submission.grade = result.get("grade")
                 submission.feedback = result.get("feedback")
-                submission.marked_file_path = self._generate_marked_file_path(submission)
                 submission.status = "graded"
                 db.session.add(submission)
                 count += 1
@@ -72,18 +92,9 @@ class GradingService:
 
     def _generate_marked_file_path(self, submission: Submission) -> Optional[str]:
         """
-        Generate or assign a marked file path for the submission.
-        Stub function — customize based on your file storage system.
-
-        Args:
-            submission (Submission)
-
-        Returns:
-            Optional[str]: Path or URL to the marked file.
+        Deprecated in favor of logic in run_ai_marking().
         """
-        # TODO: Implement actual logic if you create/modify marked files.
-        # Return None if no marked file is created.
-        return None
+        return submission.marked_file_path
 
     def trigger_manual_review(self, submission_id: int):
         """
@@ -97,4 +108,3 @@ class GradingService:
             submission.status = "manual_review"
             db.session.add(submission)
             db.session.commit()
-

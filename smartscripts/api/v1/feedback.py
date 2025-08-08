@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, abort, current_app
+from sqlalchemy.exc import SQLAlchemyError
 from flask_sqlalchemy import SQLAlchemy
 
 bp = Blueprint('feedback', __name__, url_prefix='/feedback')
@@ -39,8 +40,13 @@ def create_feedback():
 
     feedback = Feedback(submission_id=submission_id, comments=comments.strip())
     try:
-        db.session.add(feedback)
+                db.session.add(feedback)
+try:
         db.session.commit()
+except SQLAlchemyError as e:
+db.session.rollback()
+current_app.logger.error(f'Database error: {e}')
+flash('A database error occurred.', 'danger')
     except Exception as e:
         current_app.logger.error(f"Database error while saving feedback: {e}", exc_info=True)
         return jsonify({'error': 'Failed to save feedback'}), 500
@@ -74,7 +80,7 @@ def update_feedback(feedback_id):
 
     feedback.comments = comments.strip()
     try:
-        db.session.commit()
+                db.session.commit()
     except Exception as e:
         current_app.logger.error(f"Database error while updating feedback: {e}", exc_info=True)
         return jsonify({'error': 'Failed to update feedback'}), 500
@@ -88,10 +94,16 @@ def delete_feedback(feedback_id):
         abort(404, description='Feedback not found')
 
     try:
-        db.session.delete(feedback)
+                db.session.delete(feedback)
+try:
         db.session.commit()
+except SQLAlchemyError as e:
+db.session.rollback()
+current_app.logger.error(f'Database error: {e}')
+flash('A database error occurred.', 'danger')
     except Exception as e:
         current_app.logger.error(f"Database error while deleting feedback: {e}", exc_info=True)
         return jsonify({'error': 'Failed to delete feedback'}), 500
 
     return jsonify({'message': f'Feedback {feedback_id} deleted successfully.'}), 200
+

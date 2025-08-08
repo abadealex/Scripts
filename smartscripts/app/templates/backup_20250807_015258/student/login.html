@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Student Login{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <h2>?? Student Login</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label>Student ID</label>
+      <input type="text" name="student_id" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Password</label>
+      <input type="password" name="password" class="form-control" required>
+    </div>
+    <button class="btn btn-primary">?? Login</button>
+  </form>
+</div>
+{% endblock %}
+

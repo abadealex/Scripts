@@ -14,7 +14,7 @@ def generate_icon_3():
     draw.ellipse((8, 8, 56, 56), fill=circle_color)
 
     try:
-        font = ImageFont.truetype("arial.ttf", 36)
+                font = ImageFont.truetype("arial.ttf", 36)
     except IOError:
         font = ImageFont.load_default()
 
@@ -34,3 +34,4 @@ def generate_icon_3():
 if __name__ == "__main__":
     generate_icon_3()
     print("icon_3.png generated in static/overlays/")
+

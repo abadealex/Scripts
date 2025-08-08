@@ -8,3 +8,4 @@ for root, dirs, files in os.walk('smartscripts/app'):
                 for num, line in enumerate(f, 1):
                     if 'render_template(' in line:
                         print(f"{path}:{num}: {line.strip()}")
+

@@ -16,3 +16,4 @@ def generate_socratic_prompt(answer_text, explanation_text):
     # For demonstration, just return a canned question or basic transformation
     # In production, integrate with GPT or a prompt-based generator
     return "What part of the rubric do you think your answer might have missed?"
+

@@ -45,3 +45,4 @@ async def delete_existing_rubric(rubric_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Rubric not found")
     return {"status": "deleted"}
+

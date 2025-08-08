@@ -140,3 +140,30 @@ def export_submissions_to_pdf(submissions: List[Union[Dict, object]], title: str
 
 def export_student_zip(test_id: str, student_id: str, destination_folder: str) -> Optional[str]:
     return ExportService.export_student_zip(test_id, student_id, destination_folder)
+
+def export_grading_results(test_id):
+    from smartscripts.models import Test
+    import csv
+
+    test = Test.query.get(test_id)
+    data = []
+
+    for script in test.student_scripts:
+        row = { 'Student ID': script.student_id }
+        for score in script.scores:
+            row[f'Q{score.question_id}'] = score.score
+        data.append(row)
+
+    return data  # Could write CSV or return JSON
+
+import csv
+
+def export_override_csv(overrides, output_path):
+    with open(output_path, 'w', newline='') as csvfile:
+        fieldnames = ['student_id', 'question_id', 'old_score', 'new_score', 'reason']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in overrides:
+            writer.writerow(row)
+
+

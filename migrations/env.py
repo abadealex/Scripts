@@ -35,7 +35,7 @@ def flask_app_context():
     ctx = app.app_context()
     ctx.push()
     try:
-        yield
+                yield
     finally:
         ctx.pop()
 
@@ -43,7 +43,7 @@ def flask_app_context():
 def get_engine():
     with flask_app_context():
         try:
-            return current_app.extensions['migrate'].db.get_engine()
+                    return current_app.extensions['migrate'].db.get_engine()
         except (TypeError, AttributeError):
             return current_app.extensions['migrate'].db.engine
 
@@ -112,3 +112,4 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
+

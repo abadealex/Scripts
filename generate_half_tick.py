@@ -17,3 +17,4 @@ cv2.line(img, (20, 20), (130, 130), green, thickness=10, lineType=cv2.LINE_AA)
 # Save the image
 cv2.imwrite('crossed_full_tick.png', img)
 print("crossed_full_tick.png created")
+

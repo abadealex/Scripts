@@ -28,3 +28,4 @@ cv2.rectangle(img, (20, 20), (80, 80), white_translucent, thickness=2)
 filepath = os.path.join(output_dir, "manual_override.png")
 cv2.imwrite(filepath, img)
 print("manual_override.png created at:", filepath)
+

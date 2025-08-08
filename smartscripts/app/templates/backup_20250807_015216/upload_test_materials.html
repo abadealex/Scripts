@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if test %}Upload Materials for {{ test.title }}{% else %}Create Test and Upload Materials{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <h2 class="mb-4 text-primary">
+    ?? {% if test %}Upload Materials for Test: <strong>{{ test.title }}</strong>{% else %}Create Test and Upload Materials{% endif %}
+  </h2>
+
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080; min-width: 300px;">
+        {% for category, message in messages %}
+          <div class="toast align-items-center text-white bg-{{ 'success' if category == 'success' else 'danger' }} border-0 show" role="alert">
+            <div class="d-flex">
+              <div class="toast-body">{{ message }}</div>
+              <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Form Errors -->
+  {% if form.errors %}
+    <div class="alert alert-danger">
+      <ul class="mb-0">
+        {% for field, errors in form.errors.items() %}
+          {% for error in errors %}
+            <li><strong>{{ form[field].label.text }}:</strong> {{ error }}</li>
+          {% endfor %}
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <!-- Upload Form -->
+  <form method="POST" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+
+    <!-- Metadata -->
+    <h5 class="mt-3 text-primary">?? Test Metadata</h5>
+    {% if not test %}
+      <div class="mb-4">
+        {{ form.test_title.label(class="form-label fw-semibold") }}
+        {{ form.test_title(class="form-control", placeholder="Enter test title") }}
+      </div>
+      <div class="mb-4">
+        {{ form.description.label(class="form-label fw-semibold") }}
+        {{ form.description(class="form-control", placeholder="Short description", rows="3") }}
+      </div>
+      <div class="row mb-4">
+        <div class="col-md-6">
+          {{ form.subject.label(class="form-label fw-semibold") }}
+          {{ form.subject(class="form-select") }}
+        </div>
+        <div class="col-md-6">
+          {{ form.grade_level.label(class="form-label fw-semibold") }}
+          {{ form.grade_level(class="form-select") }}
+        </div>
+      </div>
+    {% else %}
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Test Title</label>
+          <input type="text" class="form-control-plaintext fs-5 fw-bold" readonly value="{{ test.title }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Grade Level</label>
+          <input type="text" class="form-control-plaintext" readonly value="{{ test.grade_level }}">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Description</label>
+        <textarea class="form-control-plaintext" rows="2" readonly>{{ test.description or '-' }}</textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Subject</label>
+        <input type="text" class="form-control-plaintext" readonly value="{{ test.subject }}">
+      </div>
+    {% endif %}
+
+    <!-- Individual Materials -->
+    <h5 class="mt-4 text-success">?? Upload Individual Materials</h5>
+    {% set files = [
+      ('question_paper', 'Question Paper', test.question_paper_path),
+      ('rubric', 'Rubric', test.rubric_path),
+      ('marking_guide', 'Marking Guide', test.marking_guide_path),
+      ('answered_script', 'Answered Script', test.answered_script_path)
+    ] %}
+    {% for field, label, path in files %}
+    <div class="mb-3">
+      <label class="form-label">{{ label }}</label>
+      <div class="input-group">
+        {% if path %}
+          <p class="form-control-plaintext mb-0">
+            Uploaded: 
+            <a href="{{ url_for('upload_bp.review_file', file_type=field, test_id=test.id) }}" target="_blank">
+              {{ path.split('/')[-1] }}
+            </a>
+          </p>
+          <a href="{{ url_for('upload_bp.delete_file', file_type=field, test_id=test.id) }}"
+             class="btn btn-outline-danger ms-2"
+             onclick="return confirm('Delete this file?');">Delete</a>
+        {% else %}
+          {{ form[field](class="form-control") }}
+          {% if test %}
+          <button type="submit"
+                  formaction="{{ url_for('upload_bp.upload_individual_file', file_type=field, test_id=test.id) }}"
+                  formmethod="post"
+                  class="btn btn-outline-primary ms-2">Upload</button>
+          {% endif %}
+          <span class="ms-2 text-muted">No file chosen</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- Bulk Upload -->
+    {% if test %}
+    <h5 class="mt-4 text-info">?? Bulk Upload: Student List & Combined Scripts</h5>
+    {% set bulk = [
+      ('class_list', 'Student List (CSV/TXT)', test.class_list_path),
+      ('combined_scripts', 'Combined Student Scripts (PDF)', test.combined_scripts_path)
+    ] %}
+    {% for field, label, path in bulk %}
+    <div class="mb-3">
+      <label class="form-label">{{ label }}</label>
+      <div class="input-group">
+        {% if path %}
+          <p class="form-control-plaintext mb-0">
+            Uploaded: 
+            <a href="{{ url_for('upload_bp.review_file', file_type=field, test_id=test.id) }}" target="_blank">
+              {{ path.split('/')[-1] }}
+            </a>
+          </p>
+          <a href="{{ url_for('upload_bp.delete_file', file_type=field, test_id=test.id) }}"
+             class="btn btn-outline-danger ms-2"
+             onclick="return confirm('Delete this file?');">Delete</a>
+        {% else %}
+          {{ form[field](class="form-control") }}
+          <button type="submit"
+                  formaction="{{ url_for('upload_bp.upload_individual_file', file_type=field, test_id=test.id) }}"
+                  formmethod="post"
+                  class="btn btn-outline-primary ms-2">Upload</button>
+          <span class="ms-2 text-muted">No file chosen</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- Optional OCR Button -->
+    <button id="start-ocr-btn" class="btn btn-success mt-4" type="button">?? Start OCR</button>
+    <div id="ocr-progress-container" class="mt-3" style="display:none;">
+      <label><strong>Processing OCR:</strong></label>
+      <div class="progress" style="height: 25px;">
+        <div id="ocr-progress-bar" class="progress-bar" role="progressbar" style="width: 0%;">0%</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Global Upload All -->
+    <div class="text-end mt-4">
+      <button type="submit" class="btn btn-success">?? Upload All</button>
+    </div>
+  </form>
+
+  <hr class="mt-5">
+  <a href="{{ url_for('teacher_bp.dashboard_bp.dashboard') }}" class="btn btn-link">?? Back to Dashboard</a>
+</div>
+
+<!-- Optional: Fake OCR Progress Animation -->
+<script>
+  document.getElementById('start-ocr-btn')?.addEventListener('click', () => {
+    const bar = document.getElementById('ocr-progress-bar');
+    document.getElementById('ocr-progress-container').style.display = 'block';
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 10;
+      bar.style.width = progress + '%';
+      bar.innerText = progress + '%';
+      if (progress >= 100) {
+        clearInterval(interval);
+        bar.innerText = '? Complete';
+      }
+    }, 300);
+    document.getElementById('start-ocr-btn').disabled = true;
+  });
+</script>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const rows = document.querySelectorAll('#testsTable tbody tr');
+      rows.forEach(row => {
+        console.log('Column count:', row.children.length);
+      });
+
+      if (!$.fn.DataTable.isDataTable('#testsTable')) {
+        $('#testsTable').DataTable({
+          pageLength: 10,
+          responsive: true,
+          language: {
+            search: "?? Search:",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ entries",
+            paginate: {
+              next: "Next",
+              previous: "Previous"
+            }
+          }
+        });
+      }
+    });
+  </script>
+{% endblock %}

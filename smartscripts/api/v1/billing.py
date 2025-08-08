@@ -1,5 +1,6 @@
 # api/v1/billing.py
 from flask import Blueprint, request, jsonify
+from sqlalchemy.exc import SQLAlchemyError
 
 bp = Blueprint('billing', __name__, url_prefix='/billing')
 
@@ -18,3 +19,4 @@ def get_plans():
         {'id': 'pro', 'name': 'Pro Plan', 'price': 1999},  # price in cents
     ]
     return jsonify(plans)
+

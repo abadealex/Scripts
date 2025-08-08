@@ -1,5 +1,6 @@
 # api/v1/auth.py
 from flask import Blueprint, request, jsonify
+from sqlalchemy.exc import SQLAlchemyError
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -29,3 +30,4 @@ def login():
         return jsonify({'error': 'Invalid credentials'}), 401
     # Normally, generate and return auth token (JWT etc.)
     return jsonify({'message': 'Login successful', 'token': 'dummy-token'}), 200
+

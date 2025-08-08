@@ -1,0 +1,95 @@
+{% extends "teacher/base.html" %}
+{% block title %}Review Submission - {{ test.title }}{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <h2 class="mb-4 text-primary">🔍 Review Submission for <strong>{{ test.title }}</strong></h2>
+  <p class="text-muted"><strong>Date:</strong> {{ test.date.strftime('%Y-%m-%d') }}</p>
+
+  <!-- 📚 Teacher Materials -->
+  <div class="mb-5">
+    <h4 class="mb-3">📘 Teacher Materials</h4>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        Marking Guide
+        {% if file_guide_url %}
+          <a href="{{ file_guide_url }}" target="_blank" class="btn btn-sm btn-outline-primary">📖 View</a>
+        {% else %}
+          <span class="text-muted">No guide uploaded</span>
+        {% endif %}
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        Rubric
+        {% if file_rubric_url %}
+          <a href="{{ file_rubric_url }}" target="_blank" class="btn btn-sm btn-outline-primary">📊 View</a>
+        {% else %}
+          <span class="text-muted">No rubric uploaded</span>
+        {% endif %}
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        Answered Script
+        {% if answered_script_url %}
+          <a href="{{ answered_script_url }}" target="_blank" class="btn btn-sm btn-outline-primary">📝 View</a>
+        {% else %}
+          <span class="text-muted">No script uploaded</span>
+        {% endif %}
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        Student Submission
+        {% if submission_url %}
+          <a href="{{ submission_url }}" target="_blank" class="btn btn-sm btn-outline-primary">📄 View</a>
+        {% else %}
+          <span class="text-muted">No submission uploaded</span>
+        {% endif %}
+      </li>
+    </ul>
+  </div>
+
+  <hr class="my-4">
+
+  <!-- ✍️ Manual Review -->
+  <h4 class="mb-3 text-secondary">✍️ Manual Review</h4>
+  {% if submission %}
+<form method="POST" action="{{ url_for('teacher_bp.manual_review_submit', submission_id=submission.id) }}" class="needs-validation" novalidate>
+{% else %}
+<!-- Submission missing - form disabled or show error -->
+<p><em>Error: submission data missing.</em></p>
+{% endif %}
+    {{ csrf_token() }}
+
+    <div class="mb-3">
+      <label for="grade" class="form-label">🎯 Grade</label>
+      <input type="number" name="grade" id="grade" class="form-control" min="0" step="0.1"
+             value="{{ submission.grade or '' }}" required>
+      <div class="invalid-feedback">Please enter a valid grade.</div>
+    </div>
+
+    <div class="mb-4">
+      <label for="comments" class="form-label">💬 Feedback</label>
+      <textarea name="comments" id="comments" class="form-control" rows="5" required>{{ submission.feedback or '' }}</textarea>
+      <div class="invalid-feedback">Please provide feedback.</div>
+    </div>
+
+    <button type="submit" class="btn btn-success px-4 rounded-pill">✅ Submit Review</button>
+  </form>
+</div>
+
+<script>
+  // Bootstrap client-side validation
+  (() => {
+    'use strict';
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+      form.addEventListener('submit', event => {
+        if (!form.checkValidity()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+      }, false);
+    });
+  })();
+</script>
+{% endblock %}
+
+

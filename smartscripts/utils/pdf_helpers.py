@@ -1,142 +1,97 @@
 import os
-import fitz  # PyMuPDF for PDF manipulation
+import json
+import zipfile
+from pathlib import Path
+from flask import current_app
+
+import fitz  # PyMuPDF
 from pdf2image import convert_from_path
 from PIL import Image, ImageDraw
 from fpdf import FPDF
 
+from smartscripts.analytics.layout_detection import detect_front_pages_via_ocr
+from smartscripts.ai.ocr_engine import (
+    extract_text_lines_from_image,
+    score_front_page,
+    is_probable_front_page
+)
 
-def convert_pdf_to_images(pdf_path, output_folder):
+# Utility: Check if a given image is likely a front page
+def is_page_front_page(image_path: str) -> bool:
+    lines = extract_text_lines_from_image(image_path)
+    text = "\n".join(lines)
+    score = score_front_page(text, lines)
+    return is_probable_front_page(score)
+
+# Core: Convert PDF pages to images and detect front pages
+def convert_pdf_to_images(pdf_path, output_folder, test_id=None, detect_front_pages=False):
     """
-    Convert each page of a PDF to PNG images saved in the output_folder.
-    Returns a list of file paths to the generated images.
+    Converts PDF to PNG images in the output_folder.
+    Optionally detects front pages and returns split page ranges.
+
+    Returns:
+        tuple: (list of image paths, list of (start, end) page ranges)
     """
-    poppler_path = r"C:\Users\ALEX\Downloads\poppler-24.08.0\Library\bin"  # Adjust as needed
+    poppler_path = r"C:\\Users\\ALEX\\Downloads\\poppler-24.08.0\\Library\\bin"
     images = convert_from_path(pdf_path, poppler_path=poppler_path)
     image_paths = []
+    split_metadata = []
 
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+    os.makedirs(output_folder, exist_ok=True)
 
     for i, img in enumerate(images):
-        img_path = os.path.join(output_folder, f"{os.path.splitext(os.path.basename(pdf_path))[0]}_page_{i+1}.png")
+        img_path = os.path.join(output_folder, f"{Path(pdf_path).stem}_page_{i + 1}.png")
         img.save(img_path, 'PNG')
         image_paths.append(img_path)
 
-    return image_paths
+        lines = extract_text_lines_from_image(img_path)
+        text = "\n".join(lines)
+        score = score_front_page(text, lines)
 
+        if score >= 0.9:
+            status = "? Confident"
+        elif score >= 0.6:
+            status = "?? Needs Review"
+        else:
+            status = "? Not Front Page"
 
-def re_render_annotated_pdf(pdf_path, output_folder, override_markings):
-    """
-    Re-render the annotated script PDF based on override markings.
-    """
-    page_images = convert_pdf_to_images(pdf_path, output_folder)
-    annotated_image_paths = []
+        split_metadata.append({
+            "page_number": i + 1,
+            "confidence": round(score, 2),
+            "status": status,
+            "image_path": img_path
+        })
 
-    for page_num, image_path in enumerate(page_images, start=1):
-        img = Image.open(image_path).convert("RGBA")
-        overlay = Image.new("RGBA", img.size)
-        draw = ImageDraw.Draw(overlay)
+    # Save front page metadata
+    if test_id:
+        meta_path = os.path.join(output_folder, f"{test_id}_frontpage_status.json")
+        with open(meta_path, "w") as f:
+            json.dump(split_metadata, f, indent=2)
 
-        annotations = override_markings.get(page_num, [])
-        for annotation in annotations:
-            if annotation['type'] == 'text':
-                position = annotation.get('position', (10, 10))
-                content = annotation.get('content', '')
-                color = annotation.get('color', (255, 0, 0, 255))
-                draw.text(position, content, fill=color)
-
-            elif annotation['type'] == 'rectangle':
-                bbox = annotation.get('bbox', (0, 0, 100, 100))
-                color = annotation.get('color', (255, 0, 0, 128))
-                draw.rectangle(bbox, outline=color, width=3)
-
-            elif annotation['type'] == 'image':
-                overlay_path = annotation.get('path')
-                position = annotation.get('position', (0, 0))
-                if overlay_path and os.path.exists(overlay_path):
-                    overlay_img = Image.open(overlay_path).convert("RGBA")
-                    overlay.paste(overlay_img, position, overlay_img)
-
-        combined = Image.alpha_composite(img, overlay)
-        annotated_path = os.path.join(output_folder, f"annotated_page_{page_num}.png")
-        combined.convert("RGB").save(annotated_path, "PNG")
-
-        annotated_image_paths.append(annotated_path)
-
-    return annotated_image_paths
-
-
-def generate_marksheet(batch_id, output_path="marksheet.pdf"):
-    """
-    Generate a marksheet PDF for a given batch_id.
-    Compiles student grades and comments into a table-style document.
-    """
-    # Mocked data source — replace this with your DB/service integration
-    def get_student_marks_for_batch(batch_id):
-        return [
-            {"student_id": "S001", "name": "Alice Johnson", "grade": 88, "comments": "Great improvement!"},
-            {"student_id": "S002", "name": "Bob Smith", "grade": 73, "comments": "Solid effort but room to grow."},
-            {"student_id": "S003", "name": "Charlie Lee", "grade": 92, "comments": "Excellent work throughout."},
+    # Detect page split points
+    page_ranges = []
+    if detect_front_pages and test_id:
+        front_page_indices = [
+            i for i, meta in enumerate(split_metadata)
+            if meta["status"] in ("? Confident", "?? Needs Review")
         ]
+        for i in range(len(front_page_indices)):
+            start = front_page_indices[i] + 1
+            end = front_page_indices[i + 1] if i + 1 < len(front_page_indices) else len(image_paths)
+            page_ranges.append((start, end))
 
-    student_data = get_student_marks_for_batch(batch_id)
+    return image_paths, page_ranges
 
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, f"Marksheet Report – Batch {batch_id}", ln=True, align="C")
-
-    # Table header
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(40, 10, "Student ID", 1)
-    pdf.cell(60, 10, "Name", 1)
-    pdf.cell(30, 10, "Grade", 1)
-    pdf.cell(60, 10, "Comments", 1)
-    pdf.ln()
-
-    # Table rows
-    pdf.set_font("Arial", "", 12)
-    for student in student_data:
-        pdf.cell(40, 10, student["student_id"], 1)
-        pdf.cell(60, 10, student["name"], 1)
-        pdf.cell(30, 10, str(student["grade"]), 1)
-        pdf.multi_cell(60, 10, student["comments"], 1)
-
-    # Save file
-    output_dir = os.path.dirname(output_path)
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    pdf.output(output_path)
-    return output_path
-
-
+# Core: Split PDF using the page ranges determined from front pages
 def split_pdf_by_page_ranges(input_pdf_path, page_ranges, output_folder):
-    """
-    Split the PDF into multiple PDFs based on a list of (start_page, end_page) tuples.
-    Pages are 1-indexed.
-    
-    Args:
-        input_pdf_path (str): Path to the source PDF.
-        page_ranges (list of tuples): List of (start_page, end_page) tuples.
-        output_folder (str): Directory to save the split PDFs.
-
-    Returns:
-        list of str: Paths to the saved split PDFs.
-    """
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
+    os.makedirs(output_folder, exist_ok=True)
     doc = fitz.open(input_pdf_path)
     output_paths = []
 
     for i, (start, end) in enumerate(page_ranges, start=1):
-        # Create new PDF for the page range
         new_doc = fitz.open()
-        for page_num in range(start - 1, end):  # zero-based index in fitz
+        for page_num in range(start - 1, end):
             new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
-        
         output_path = os.path.join(output_folder, f"split_part_{i}_{start}_{end}.pdf")
         new_doc.save(output_path)
         new_doc.close()
@@ -145,54 +100,96 @@ def split_pdf_by_page_ranges(input_pdf_path, page_ranges, output_folder):
     doc.close()
     return output_paths
 
-
-def save_per_student_pdfs(master_pdf_path, student_page_mapping, base_output_folder):
-    """
-    Save individual PDFs per student by splitting the master PDF based on page ranges.
-    
-    Args:
-        master_pdf_path (str): The full combined PDF path.
-        student_page_mapping (dict): Mapping {student_id: (start_page, end_page)}.
-            Pages are 1-indexed.
-        base_output_folder (str): Base folder to save per-student PDFs.
-    
-    Returns:
-        dict: Mapping {student_id: saved_pdf_path}
-    """
-    if not os.path.exists(base_output_folder):
-        os.makedirs(base_output_folder)
-
-    doc = fitz.open(master_pdf_path)
-    student_pdf_paths = {}
-
-    for student_id, (start_page, end_page) in student_page_mapping.items():
-        new_doc = fitz.open()
-        for page_num in range(start_page - 1, end_page):
-            new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
-        student_folder = os.path.join(base_output_folder, "student_scripts")
-        if not os.path.exists(student_folder):
-            os.makedirs(student_folder)
-        output_path = os.path.join(student_folder, f"{student_id}_script.pdf")
-        new_doc.save(output_path)
-        new_doc.close()
-        student_pdf_paths[student_id] = output_path
-
-    doc.close()
-    return student_pdf_paths
-
-
+# Wrapper alias for split function
 def save_split_pdf(master_pdf_path, page_ranges, output_folder):
-    """
-    The function named 'save_split_pdf' to fix your ImportError.
-    It splits a PDF into multiple smaller PDFs based on page ranges
-    and saves them in the output_folder.
-
-    Args:
-        master_pdf_path (str): The source PDF path.
-        page_ranges (list of tuples): List of (start_page, end_page) tuples.
-        output_folder (str): Directory to save split PDFs.
-
-    Returns:
-        list of str: List of saved PDF file paths.
-    """
     return split_pdf_by_page_ranges(master_pdf_path, page_ranges, output_folder)
+
+# Utility: Rename split student PDFs using matched student list
+def rename_student_pdfs(matched_students, pdf_dir, output_dir=None):
+    output_dir = output_dir or pdf_dir
+    os.makedirs(output_dir, exist_ok=True)
+    renamed_files = []
+
+    for student in matched_students:
+        orig_path = student.get('original_path')
+        student_id = student.get('student_id', '').strip()
+        name = student.get('name', '').strip().replace(" ", "_")
+
+        if not student_id or not name or not os.path.exists(orig_path):
+            print(f"[WARN] Skipping invalid entry: {student}")
+            continue
+
+        filename = f"{student_id}_{name}.pdf"
+        new_path = os.path.join(output_dir, filename)
+
+        counter = 1
+        while os.path.exists(new_path):
+            filename = f"{student_id}_{name}_{counter}.pdf"
+            new_path = os.path.join(output_dir, filename)
+            counter += 1
+
+        os.rename(orig_path, new_path)
+
+        renamed_files.append({
+            "student_id": student_id,
+            "name": name,
+            "new_path": new_path
+        })
+
+        print(f"[INFO] ? Renamed to: {filename}")
+
+    return renamed_files
+
+# Utility: Create a ZIP containing all split PDFs and the presence CSV
+def package_results(test_id: str, output_dir: str, pdf_dir: str, presence_csv_path: str):
+    zip_path = Path(output_dir) / f"test_{test_id}_processed.zip"
+    with zipfile.ZipFile(zip_path, 'w') as zipf:
+        for pdf_file in Path(pdf_dir).glob("*.pdf"):
+            zipf.write(pdf_file, arcname=pdf_file.name)
+        zipf.write(presence_csv_path, arcname="presence_table.csv")
+
+    print(f"?? Final ZIP created: {zip_path}")
+    return str(zip_path)
+
+# End-to-end function: PDF ? Images ? Detect Front Pages ? Split PDF
+def auto_split_pdf(pdf_path: str, output_folder: str, test_id: str, confidence_threshold=0.6):
+    print(f"[INFO] Starting auto-split for: {pdf_path}")
+    image_paths, page_ranges = convert_pdf_to_images(
+        pdf_path=pdf_path,
+        output_folder=output_folder,
+        test_id=test_id,
+        detect_front_pages=True
+    )
+
+    if not page_ranges:
+        print("[WARN] No front pages detected. Skipping split.")
+        return []
+
+    print(f"[INFO] ? Detected {len(page_ranges)} segments. Proceeding to split...")
+    return split_pdf_by_page_ranges(pdf_path, page_ranges, output_folder)
+
+# ? Alias required by import
+split_pdf_by_front_pages = auto_split_pdf
+
+
+def generate_pdf_report(test_id: int) -> str:
+    # Directory to store generated reports
+    reports_dir = os.path.join(current_app.instance_path, 'reports')
+    os.makedirs(reports_dir, exist_ok=True)
+
+    # Output PDF path
+    output_path = os.path.join(reports_dir, f'test_report_{test_id}.pdf')
+
+    # ?? Generate a simple PDF using FPDF
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=16)
+    pdf.cell(200, 10, txt=f"Test Report for Test ID {test_id}", ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, txt="This is a placeholder report.\nYou can fill in analytics or summaries here.")
+
+    # Save PDF to file
+    pdf.output(output_path)
+
+    return output_path

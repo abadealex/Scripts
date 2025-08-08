@@ -19,7 +19,6 @@
       {% endif %}
     {% endwith %}
 
-    {# Upload section hidden because enable_upload = False #}
     {% if enable_upload %}
     <section id="upload-section" class="mb-5">
         <h3>Upload Your Submission</h3>
@@ -68,47 +67,45 @@
                     </td>
                     <td>
                         {% if sub.feedback %}
-                            <span class="text-success">Available</span>
+                            <span class="text-success" title="{{ sub.feedback }}">{{ sub.feedback[:50] }}...</span>
                         {% else %}
                             <span class="text-muted">N/A</span>
                         {% endif %}
                     </td>
                     <td>
-                        {# Download links only if available #}
                         {% if sub.marked_file_path %}
                             <a href="{{ url_for('static', filename=sub.marked_file_path) }}"
                                class="btn btn-sm btn-outline-primary"
-                               download title="Download marked file">
+                               download
+                               title="Download the annotated, marked script">
                                 📥 Marked File
                             </a>
                         {% else %}
-                            <span class="text-muted">No Marked File</span>
+                            <span class="text-muted" title="Marked file not yet available">No Marked File</span>
                         {% endif %}
 
                         {% if sub.feedback_pdf_path %}
                             <a href="{{ url_for('static', filename=sub.feedback_pdf_path) }}"
                                class="btn btn-sm btn-outline-secondary ms-2"
-                               download title="Download feedback PDF">
+                               download
+                               title="Download full feedback PDF with comments and rubric">
                                 📝 Feedback PDF
                             </a>
                         {% endif %}
 
                         {% if sub.report_filename %}
                             <a href="{{ url_for('student_bp.download_report_by_id', submission_id=sub.id) }}"
-                               class="btn btn-sm btn-success ms-2"
-                               download title="Download result report">
-                                📄 Report PDF
+                               class="btn btn-sm btn-outline-info ms-2"
+                               title="Detailed performance report with breakdowns">
+                                📊 Report
                             </a>
-                        {% else %}
-                            <span class="text-muted ms-2">No Report</span>
                         {% endif %}
 
-                        {# View detailed feedback button #}
-                        {% if sub.guide and sub.guide.test_id %}
-                            <a href="{{ url_for('student_bp.view_feedback', test_id=sub.guide.test_id, student_id=sub.student_id) }}"
-                               class="btn btn-sm btn-info ms-2"
-                               title="View detailed feedback">
-                                🧐 View Feedback
+                        {% if sub.zip_ready %}
+                            <a href="{{ url_for('student_bp.download_marked_zip', submission_id=sub.id) }}"
+                               class="btn btn-sm btn-outline-success mt-2"
+                               title="Download all marking assets in a ZIP">
+                                🗂️ Export ZIP
                             </a>
                         {% endif %}
                     </td>
@@ -118,7 +115,9 @@
         </table>
     </div>
     {% else %}
-        <p class="text-muted text-center">You have no submissions or results yet.</p>
+        <div class="alert alert-warning">You haven't made any submissions yet.</div>
     {% endif %}
 </div>
 {% endblock %}
+
+

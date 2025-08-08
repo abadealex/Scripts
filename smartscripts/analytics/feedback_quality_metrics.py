@@ -15,3 +15,4 @@ def feedback_quality_summary(feedback_list):
         'average_quality_score': avg_score,
         'total_feedback': len(feedback_list)
     }
+

@@ -19,3 +19,4 @@ def generate_invoice_pdf(invoice_data: dict) -> bytes:
 
     buffer.seek(0)
     return buffer.read()
+

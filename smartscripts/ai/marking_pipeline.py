@@ -2,15 +2,19 @@ import os
 import json
 import cv2
 from celery import shared_task
+from flask import current_app, flash
+from sqlalchemy.exc import SQLAlchemyError
 from sentence_transformers import SentenceTransformer, util
+
 from smartscripts.ai.ocr_engine import extract_text_from_image
 from smartscripts.services.overlay_service import add_overlay
 from smartscripts.utils.text_cleaner import clean_text
-from smartscripts.models import StudentSubmission, db
-from flask import current_app
+from smartscripts.models import StudentSubmission
+from smartscripts.extensions import db
 
-# Load embedding model once (globally)
+# Load embedding model once globally
 model = SentenceTransformer("all-MiniLM-L6-v2")
+
 
 def fetch_expected_text_from_guide(test_id: int) -> str:
     guide_path = os.path.join("uploads", "guides", str(test_id), "guide.txt")
@@ -19,14 +23,15 @@ def fetch_expected_text_from_guide(test_id: int) -> str:
             return f.read()
     raise FileNotFoundError(f"Guide file not found for test_id={test_id} at {guide_path}")
 
+
 def compute_similarity(text1: str, text2: str) -> float:
     embedding1 = model.encode(text1, convert_to_tensor=True)
     embedding2 = model.encode(text2, convert_to_tensor=True)
-    similarity = util.pytorch_cos_sim(embedding1, embedding2).item()
-    return similarity
+    return util.pytorch_cos_sim(embedding1, embedding2).item()
+
 
 def update_marked_submission(submission_id: int, score: float, feedback: str, marked_file_path: str):
-    submission = Submission.query.get(submission_id)
+    submission = StudentSubmission.query.get(submission_id)
     if not submission:
         raise ValueError(f"Submission ID {submission_id} not found.")
 
@@ -35,9 +40,15 @@ def update_marked_submission(submission_id: int, score: float, feedback: str, ma
     submission.marked = True
     submission.file_path = marked_file_path
     submission.status = "graded"
-    db.session.commit()
 
-    # Save feedback JSON in uploads/feedback/<test_id>/<student_id>/feedback.json
+    try:
+        db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f"Database error: {e}")
+        flash("A database error occurred.", "danger")
+
+    # Save feedback JSON
     feedback_dir = os.path.join("uploads", "feedback", str(submission.test_id), str(submission.student_id))
     os.makedirs(feedback_dir, exist_ok=True)
     feedback_path = os.path.join(feedback_dir, "feedback.json")
@@ -50,7 +61,8 @@ def update_marked_submission(submission_id: int, score: float, feedback: str, ma
     with open(feedback_path, "w", encoding="utf-8") as f:
         json.dump(feedback_data, f, indent=2)
 
-    print(f"✅ Submission {submission_id} updated with score={score:.2f} and feedback saved.")
+    print(f"? Submission {submission_id} updated with score={score:.2f} and feedback saved.")
+
 
 def mark_submission(file_path: str, test_id: int, student_id: int, threshold: float = 0.75):
     try:
@@ -89,7 +101,7 @@ def mark_submission(file_path: str, test_id: int, student_id: int, threshold: fl
         if not cv2.imwrite(marked_path, annotated_image):
             raise IOError(f"Failed to write annotated image to {marked_path}")
 
-        submission = Submission.query.filter_by(student_id=student_id, test_id=test_id).first()
+        submission = StudentSubmission.query.filter_by(student_id=student_id, test_id=test_id).first()
         if not submission:
             raise ValueError(f"No submission found for student_id={student_id}, test_id={test_id}.")
 
@@ -108,15 +120,16 @@ def mark_submission(file_path: str, test_id: int, student_id: int, threshold: fl
         }
 
     except Exception as e:
-        error_message = f"❌ mark_submission failed for student_id={student_id}, test_id={test_id}: {str(e)}"
+        error_message = f"? mark_submission failed for student_id={student_id}, test_id={test_id}: {str(e)}"
         print(error_message)
         if current_app:
             current_app.logger.error(error_message)
         raise
 
+
 @shared_task
 def mark_submission_async(submission_id):
-    submission = Submission.query.get(submission_id)
+    submission = StudentSubmission.query.get(submission_id)
     if not submission:
         print(f"Submission {submission_id} not found.")
         return
@@ -129,11 +142,12 @@ def mark_submission_async(submission_id):
             test_id=submission.test_id,
             student_id=submission.student_id
         )
-        print(f"✅ Finished marking submission {submission_id} with score {result['similarity_score']:.2f}")
+        print(f"? Finished marking submission {submission_id} with score {result['similarity_score']:.2f}")
     except Exception as e:
-        print(f"❌ Error marking submission {submission_id}: {e}")
+        print(f"? Error marking submission {submission_id}: {e}")
         if current_app:
             current_app.logger.error(f"Async marking error: {e}")
+
 
 def mark_batch_submissions(submissions: list):
     results = []
@@ -152,28 +166,27 @@ def mark_batch_submissions(submissions: list):
                 current_app.logger.error(error_msg)
     return results
 
+
 def mark_all_for_test(test_id):
-    submissions = Submission.query.filter_by(test_id=test_id, marked=False).all()
+    submissions = StudentSubmission.query.filter_by(test_id=test_id, marked=False).all()
     if not submissions:
-        print(f"ℹ️ No unmarked submissions found for test_id={test_id}")
+        print(f"?? No unmarked submissions found for test_id={test_id}")
         return
 
-    print(f"🚀 Queuing {len(submissions)} submissions for batch marking (test_id={test_id})...")
+    print(f"?? Queuing {len(submissions)} submissions for batch marking (test_id={test_id})...")
     for submission in submissions:
-        print(f"📤 Queuing submission ID {submission.id} for student {submission.student_id}")
+        print(f"?? Queuing submission ID {submission.id} for student {submission.student_id}")
         mark_submission_async.delay(submission.id)
 
+
 def mark_single_submission(submission):
-    """
-    Marks a single Submission object.
-    """
     return mark_submission(
         file_path=submission.file_path,
         test_id=submission.test_id,
         student_id=submission.student_id
     )
 
-# Optional helper to process all files in the test/student folders (if you want)
+
 def mark_all_submissions_in_folder(test_id: int):
     base_dir = os.path.join("uploads", "submissions", str(test_id))
     if not os.path.exists(base_dir):

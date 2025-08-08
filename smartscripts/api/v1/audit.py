@@ -8,3 +8,4 @@ router = APIRouter()
 async def get_bias_report(batch_id: str):
     report = generate_bias_report(batch_id=batch_id)
     return report
+

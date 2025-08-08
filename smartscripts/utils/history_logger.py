@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from flask_login import current_user
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger("history_logger")
 logger.setLevel(logging.INFO)
@@ -36,3 +37,15 @@ def log_manual_override(action: str, student_id: int, override_details: dict):
     }
 
     logger.info(f"Manual Override: {log_entry}")
+
+from datetime import datetime
+
+def log_override_change(user_id, student_id, field, old_value, new_value, timestamp=None):
+    """
+    Logs who changed what in the override history.
+    """
+    timestamp = timestamp or datetime.utcnow()
+    print(f"[OVERRIDE] {timestamp} - User {user_id} changed {field} for {student_id} from '{old_value}' to '{new_value}'")
+    # Optionally save to a CSV or database
+
+

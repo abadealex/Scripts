@@ -104,3 +104,4 @@ def average_manual_review_time() -> float:
         time_diffs.append(delta.total_seconds())
 
     return sum(time_diffs) / len(time_diffs)
+

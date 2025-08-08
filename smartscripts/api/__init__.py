@@ -1,4 +1,5 @@
 from flask import Blueprint
+from sqlalchemy.exc import SQLAlchemyError
 
 # Create the main API blueprint with a prefix
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -10,3 +11,4 @@ from smartscripts.api.v1 import submissions, auth, grading, feedback, billing, r
 from smartscripts.api.v1 import v1_bp  # This will be your v1 root bp
 
 api_bp.register_blueprint(v1_bp)
+

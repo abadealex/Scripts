@@ -1,6 +1,7 @@
 # billing/subscription_service.py
 from billing.stripe_utils import retrieve_event
 from flask import current_app
+from sqlalchemy.exc import SQLAlchemyError
 import logging
 
 # Simulated local DB (replace with actual persistence)
@@ -29,3 +30,4 @@ def handle_webhook_event(payload, sig_header, endpoint_secret):
 
 def get_subscription_status(customer_id):
     return next((s for s in subscriptions.values() if s['customer_id'] == customer_id), None)
+

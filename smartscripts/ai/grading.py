@@ -82,7 +82,7 @@ def mark_submission(file_path: str, guide: Dict[str, Any]) -> Dict[str, Any]:
 
     # 🟨 Extract test_id and student_id from path
     try:
-        parts = file_path.split(os.sep)
+                parts = file_path.split(os.sep)
         test_id = parts[-3]
         student_id = parts[-2]
     except IndexError:
@@ -132,3 +132,11 @@ if __name__ == "__main__":
     sample_submission_path = "uploads/submissions/test_id_A/student_123/submission.json"
     result = mark_submission(sample_submission_path, sample_guide)
     print(json.dumps(result, indent=2))
+
+def apply_gpt_scoring(answer, rubric, model_answer=None):
+    from smartscripts.ai.gpt_utils import call_gpt_model, build_prompt, parse_score, parse_feedback
+
+    prompt = build_prompt(answer, rubric, model_answer)
+    response = call_gpt_model(prompt)
+    return parse_score(response), parse_feedback(response)
+

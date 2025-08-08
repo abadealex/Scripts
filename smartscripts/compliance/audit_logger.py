@@ -12,4 +12,18 @@ class AuditLog(db.Model):
 def log_action(user_id=None, action="", metadata=None):
     entry = AuditLog(user_id=user_id, action=action, metadata=metadata or {})
     db.session.add(entry)
-    db.session.commit()
+try:
+        db.session.commit()
+except SQLAlchemyError as e:
+db.session.rollback()
+current_app.logger.error(f'Database error: {e}')
+flash('A database error occurred.', 'danger')
+
+def log_audit_event(action, user_id, details):
+    """
+    Logs a structured audit trail event.
+    """
+    print(f"[AUDIT] Action: {action} | User: {user_id} | Details: {details}")
+    # Optional: save to file or database
+
+

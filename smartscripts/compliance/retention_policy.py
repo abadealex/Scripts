@@ -13,5 +13,11 @@ def enforce_retention_policy():
     for submission in old_submissions:
         db.session.delete(submission)
 
-    db.session.commit()
+try:
+        db.session.commit()
+except SQLAlchemyError as e:
+db.session.rollback()
+current_app.logger.error(f'Database error: {e}')
+flash('A database error occurred.', 'danger')
     return count
+

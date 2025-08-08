@@ -1,0 +1,118 @@
+{% extends "teacher/base.html" %}
+
+{% block title %}👩‍🎓 Review Extracted Students - {{ test.title }}{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <h2 class="mb-3 text-primary">
+    📋 Review Extracted Students for Test: <strong>{{ test.title }}</strong>
+  </h2>
+  <p class="text-muted">Confirm or correct each student’s details before proceeding to grading.</p>
+
+  <!-- 🔔 Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category or 'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('teacher_bp.confirm_extracted_students', test_id=test.id) }}">
+    {{ csrf_token() }}
+
+    <!-- 📄 Extracted Student Table -->
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>📄 Page Range</th>
+            <th>👤 Student Name <small class="text-muted">(editable)</small></th>
+            <th>🆔 Student ID <small class="text-muted">(editable)</small></th>
+            <th class="text-center">✅ Confirmed</th>
+            <th class="text-center">🔍 Preview</th>
+            <th>🚩 Flags</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for script in extracted_scripts %}
+            <tr class="{% if not script.student_name or not script.student_id %}table-warning{% endif %}">
+              <td>{{ script.page_range or (script.page_start ~ '–' ~ script.page_end) or "N/A" }}</td>
+
+              <td>
+                <input
+                  type="text"
+                  name="script_{{ script.id }}_name"
+                  class="form-control {% if not script.student_name %}is-invalid{% endif %}"
+                  value="{{ script.student_name or '' }}"
+                  required
+                >
+              </td>
+
+              <td>
+                <input
+                  type="text"
+                  name="script_{{ script.id }}_student_id"
+                  class="form-control {% if not script.student_id %}is-invalid{% endif %}"
+                  value="{{ script.student_id or '' }}"
+                  required
+                >
+              </td>
+
+              <td class="text-center">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  name="script_{{ script.id }}_confirmed"
+                  {% if script.confirmed %}checked{% endif %}
+                  aria-label="Confirm extracted student"
+                >
+              </td>
+
+              <td class="text-center">
+                {% if script.extracted_pdf_filename %}
+                  <a href="{{ url_for('file_routes_bp.uploaded_file', filename=script.extracted_pdf_filename) }}"
+                     target="_blank"
+                     class="btn btn-sm btn-outline-primary"
+                     title="View extracted PDF">
+                    📄 View
+                  </a>
+                {% else %}
+                  <span class="text-muted">N/A</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if not script.student_name %}
+                  <span class="badge bg-danger">Missing Name</span>
+                {% endif %}
+                {% if not script.student_id %}
+                  <span class="badge bg-warning text-dark">Missing ID</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted">No extracted student scripts found.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 🔘 Navigation Buttons -->
+    <div class="mt-4 d-flex justify-content-between">
+      <a href="{{ url_for('teacher_bp.review_test', test_id=test.id) }}" class="btn btn-outline-secondary rounded-pill">
+        ← Back to Test Review
+      </a>
+      <button type="submit" class="btn btn-success rounded-pill px-4">
+        ✅ Save & Proceed
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+

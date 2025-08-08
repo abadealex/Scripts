@@ -1,35 +1,35 @@
-import os
+﻿import os
+
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, flash, current_app, abort, send_from_directory, jsonify
+    url_for, flash, current_app, abort,
+    send_from_directory, jsonify
 )
 from flask_login import login_required, current_user
+from sqlalchemy.exc import SQLAlchemyError
 from celery.result import AsyncResult
 
 from smartscripts.utils.utils import check_teacher_access, check_student_access
-from smartscripts.models import StudentSubmission, db
+from smartscripts.models.student_submission import StudentSubmission  
+from smartscripts.extensions import db, celery     
+
 from smartscripts.services.review_service import (
     get_review_history, process_teacher_review
 )
-from smartscripts.extensions import celery
 
 main_bp = Blueprint('main_bp', __name__)
 
 
 @main_bp.route('/', methods=['GET'])
 def index():
-    """Landing page."""
     return render_template('main/index.html')
 
 
 @main_bp.route('/dashboard', methods=['GET'])
 @login_required
 def dashboard():
-    """Redirect users to their respective dashboards based on role."""
     if current_user.role == 'teacher':
-        return redirect(url_for('teacher_bp.dashboard'))
-    elif current_user.role == 'student':
-        return redirect(url_for('student_bp.dashboard'))
+        return redirect(url_for('teacher_bp.dashboard_bp.dashboard'))
     else:
         abort(403)
 
@@ -37,7 +37,6 @@ def dashboard():
 @main_bp.route('/upload/guide', methods=['GET'])
 @login_required
 def upload_guide_redirect():
-    """Redirect teacher to upload guide export page."""
     check_teacher_access()
     return redirect(url_for('teacher_bp.export_upload_guide_page'))
 
@@ -45,7 +44,6 @@ def upload_guide_redirect():
 @main_bp.route('/upload/submission', methods=['GET'])
 @login_required
 def upload_submission_redirect():
-    """Redirect student to submission upload page."""
     check_student_access()
     return redirect(url_for('student_bp.student_upload'))
 
@@ -53,7 +51,6 @@ def upload_submission_redirect():
 @main_bp.route('/submissions', methods=['GET'])
 @login_required
 def list_submissions():
-    """List submissions with pagination."""
     page = request.args.get('page', 1, type=int)
     per_page = 10
 
@@ -75,9 +72,7 @@ def list_submissions():
 @main_bp.route('/submission/<int:submission_id>', methods=['GET'])
 @login_required
 def view_submission(submission_id):
-    """View a specific submission."""
     submission = StudentSubmission.query.get_or_404(submission_id)
-
     if submission.student_id != current_user.id and current_user.role != 'teacher':
         abort(403)
 
@@ -87,7 +82,6 @@ def view_submission(submission_id):
 @main_bp.route('/download/report/<int:submission_id>', methods=['GET'])
 @login_required
 def download_report(submission_id):
-    """Download the report PDF for a submission."""
     submission = StudentSubmission.query.get_or_404(submission_id)
 
     if submission.student_id != current_user.id and current_user.role != 'teacher':
@@ -104,13 +98,12 @@ def download_report(submission_id):
         flash('Report file not found.', 'danger')
         return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
 
-    return send_from_directory(directory=upload_dir, filename=submission.report_filename, as_attachment=True)
+    return send_from_directory(directory=upload_dir, path=submission.report_filename, as_attachment=True)
 
 
 @main_bp.route('/download/annotated/<int:submission_id>', methods=['GET'])
 @login_required
 def download_annotated(submission_id):
-    """Download annotated image for a submission."""
     submission = StudentSubmission.query.get_or_404(submission_id)
 
     if submission.student_id != current_user.id and current_user.role != 'teacher':
@@ -127,22 +120,20 @@ def download_annotated(submission_id):
         flash('Annotated file not found.', 'danger')
         return redirect(url_for('main_bp.view_submission', submission_id=submission_id))
 
-    return send_from_directory(directory=upload_dir, filename=submission.graded_image, as_attachment=True)
+    return send_from_directory(directory=upload_dir, path=submission.graded_image, as_attachment=True)
 
-
-# Review API endpoints
 
 @main_bp.route('/api/reviews/<int:submission_id>', methods=['GET'])
 @login_required
 def get_review(submission_id):
-    """Get review history for a submission."""
     submission = StudentSubmission.query.get_or_404(submission_id)
     if current_user.role != 'teacher' and submission.student_id != current_user.id:
         abort(403)
 
-    review_data = {}
-    for question_id in submission.get_question_ids():
-        review_data[question_id] = get_review_history(question_id)
+    review_data = {
+        question_id: get_review_history(question_id)
+        for question_id in submission.get_question_ids()
+    }
 
     return jsonify({
         "submission_id": submission_id,
@@ -153,18 +144,19 @@ def get_review(submission_id):
 @main_bp.route('/api/reviews/<int:submission_id>/feedback', methods=['POST'])
 @login_required
 def post_feedback(submission_id):
-    """Post feedback for a submission question (teachers only)."""
     if current_user.role != 'teacher':
         abort(403)
 
     data = request.json or {}
-    question_id = data.get('question_id')
-    original_text = data.get('original_text')
-    corrected_text = data.get('corrected_text')
+
+    # Fallback to empty string for type safety
+    question_id = str(data.get('question_id') or "")
+    original_text = str(data.get('original_text') or "")
+    corrected_text = str(data.get('corrected_text') or "")
     feedback = data.get('feedback')
     comment = data.get('comment')
 
-    if not all([question_id, original_text, corrected_text]):
+    if not all([question_id.strip(), original_text.strip(), corrected_text.strip()]):
         return jsonify({"error": "Missing required fields"}), 400
 
     override = process_teacher_review(
@@ -182,24 +174,18 @@ def post_feedback(submission_id):
     })
 
 
-# ✅ Task Status Endpoint
-
 @main_bp.route('/task_status/<task_id>', methods=['GET'])
 def task_status(task_id):
-    """Return JSON with the current status and info of a Celery task."""
     task = AsyncResult(task_id, app=celery)
     if not task:
         abort(404, description="Task not found")
 
-    response = {
+    return jsonify({
         'task_id': task_id,
         'state': task.state,
         'status': task.info if isinstance(task.info, dict) else {'message': str(task.info)}
-    }
-    return jsonify(response)
+    })
 
-
-# Error Handlers
 
 @main_bp.app_errorhandler(403)
 def forbidden(error):
@@ -216,14 +202,10 @@ def internal_error(error):
     return render_template('errors/500.html'), 500
 
 
-# Test Route
-
 @main_bp.route('/test', methods=['GET'])
 def test():
     return "Main blueprint is working!"
 
-
-# DB Init Route (DEV ONLY — REMOVE IN PROD)
 
 @main_bp.route('/init-db', methods=['GET'])
 def init_db():

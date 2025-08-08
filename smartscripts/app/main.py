@@ -19,3 +19,4 @@ def create_app():
     return app
 from smartscripts.api.v1.submissions import bp as submissions_bp
 app.register_blueprint(submissions_bp, url_prefix='/api/v1')
+

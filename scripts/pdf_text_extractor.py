@@ -41,3 +41,4 @@ if __name__ == "__main__":
     input_folder = r"C:\Users\ALEX\Desktop\Smartscripts\smartscripts\app\static\uploads\student_scripts"
     output_folder = r"C:\Users\ALEX\Desktop\Smartscripts\output"
     extract_text_from_folder(input_folder, output_folder)
+

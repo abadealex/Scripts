@@ -1,57 +1,109 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Review Submission - {{ test.title }}{% endblock %}
 
 {% block content %}
-<h1>🔍 Review Submission for Test: {{ test.title }}</h1>
-<p>Date: {{ test.date.strftime('%Y-%m-%d') }}</p>
+<div class="container my-5">
+  <h2 class="mb-4 text-primary">📝 Review Submission for <strong>{{ test.title }}</strong></h2>
+  <p class="text-muted"><strong>Date:</strong> {{ test.date.strftime('%Y-%m-%d') }}</p>
 
-<!-- Teacher Materials -->
-<h3>📘 Marking Guide</h3>
-{% if file_guide_url %}
-  <p><a href="{{ file_guide_url }}" target="_blank">View Marking Guide</a></p>
-{% else %}
-  <p><em>No marking guide uploaded.</em></p>
-{% endif %}
-
-<h3>📄 Rubric</h3>
-{% if file_rubric_url %}
-  <p><a href="{{ file_rubric_url }}" target="_blank">View Rubric</a></p>
-{% else %}
-  <p><em>No rubric uploaded.</em></p>
-{% endif %}
-
-<h3>🧾 Answered Script</h3>
-{% if answered_script_url %}
-  <p><a href="{{ answered_script_url }}" target="_blank">View Answered Script</a></p>
-{% else %}
-  <p><em>No answered script uploaded.</em></p>
-{% endif %}
-
-<h3>📄 Student Submission</h3>
-{% if submission_url %}
-  <p><a href="{{ submission_url }}" target="_blank">📄 View Submission File</a></p>
-{% else %}
-  <p><em>No submission file uploaded.</em></p>
-{% endif %}
-
-<hr>
-
-<!-- Manual Review Form -->
-<h3>✍️ Manual Review</h3>
-<form method="POST" action="{{ url_for('teacher_bp.manual_review_submit', submission_id=submission.id) }}">
-  {{ csrf_token() }}
-  
-  <div class="form-group">
-    <label for="grade">Grade:</label>
-    <input type="number" step="0.1" class="form-control" name="grade" id="grade"
-           value="{{ submission.grade or '' }}" required>
+  <!-- 📚 Teacher Materials -->
+  <div class="mb-5">
+    <h4 class="mb-3">📚 Teacher Materials</h4>
+    <ul class="list-group list-group-flush">
+      {% set materials = [
+        ('marking_guide', '📖 Marking Guide', file_guide_url),
+        ('rubric', '📊 Rubric', file_rubric_url),
+        ('answered_script', '📝 Answered Script', answered_script_url),
+        ('student_submission', '👨‍🎓 Student Submission', submission_url)
+      ] %}
+      {% for key, label, url in materials %}
+      <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+        <div class="me-3" style="min-width: 250px;">
+          <strong>{{ label }}</strong><br>
+          {% if url %}
+            📂 <small class="text-truncate d-inline-block" style="max-width: 400px;" title="{{ url }}">{{ url }}</small>
+          {% else %}
+            ❌ Not uploaded
+          {% endif %}
+        </div>
+        <div class="btn-group mt-2 mt-sm-0" role="group" aria-label="File actions for {{ label }}">
+          <form method="POST" enctype="multipart/form-data"
+                action="{{ url_for('upload_bp.upload_individual_file', file_type=key, test_id=test.id) }}" class="d-inline-block m-0 p-0">
+            <input type="file" name="{{ key }}" class="d-none" accept=".pdf,.doc,.docx,.txt,.csv" onchange="this.form.submit()" aria-label="Upload {{ label }}">
+            <label class="btn btn-outline-primary btn-sm mb-0" style="cursor:pointer;" title="Upload {{ label }}">📤 Upload</label>
+          </form>
+          {% if url %}
+          <a href="{{ url_for('upload_bp.review_file', file_type=key, test_id=test.id) }}"
+             class="btn btn-outline-success btn-sm mb-0" title="Review {{ label }}">👁️ Review</a>
+          <a href="{{ url_for('upload_bp.delete_file', file_type=key, test_id=test.id) }}"
+             class="btn btn-outline-danger btn-sm mb-0"
+             onclick="return confirm('Delete this file?');" title="Delete {{ label }}">🗑️ Delete</a>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
   </div>
 
-  <div class="form-group">
-    <label for="comments">Feedback:</label>
-    <textarea class="form-control" name="comments" id="comments" rows="5" required>{{ submission.feedback or '' }}</textarea>
-  </div>
+  <!-- ➡️ Next Phase Actions -->
+  {% if test.all_required_uploaded is defined and test.all_required_uploaded %}
+    <hr>
+    <div class="mb-4">
+      <h5 class="text-success">✅ All Required Files Uploaded</h5>
+      <a href="{{ url_for('teacher_bp.review_bp.extract_class_list', test_id=test.id) }}" class="btn btn-secondary me-2">📋 Extract Class List</a>
+      <a href="{{ url_for('teacher_bp.review_bp.start_ai_grading', test_id=test.id) }}" class="btn btn-success me-2">🤖 Start Grading</a>
+    </div>
+  {% else %}
+    <div class="alert alert-warning" role="alert">
+      ⚠️ Upload all required files to enable Extract or Grading actions.
+    </div>
+  {% endif %}
 
-  <button type="submit" class="btn btn-primary">Submit Review</button>
-</form>
+  <hr class="my-4">
+
+  <!-- ✍️ Manual Review -->
+  <h4 class="mb-3 text-secondary">✍️ Manual Review</h4>
+  {% if submission %}
+    <form method="POST" action="{{ url_for('teacher_bp.review_bp.manual_review_submit', submission_id=submission.id) }}"
+          class="needs-validation" novalidate>
+      {{ csrf_token() }}
+
+      <div class="mb-3">
+        <label for="grade" class="form-label">📝 Grade</label>
+        <input type="number" name="grade" id="grade" class="form-control" min="0" step="0.1"
+               value="{{ submission.grade or '' }}" required>
+        <div class="invalid-feedback">Please enter a valid grade.</div>
+      </div>
+
+      <div class="mb-4">
+        <label for="comments" class="form-label">💬 Feedback</label>
+        <textarea name="comments" id="comments" class="form-control" rows="5" required>{{ submission.feedback or '' }}</textarea>
+        <div class="invalid-feedback">Please provide feedback.</div>
+      </div>
+
+      <button type="submit" class="btn btn-success px-4 rounded-pill">✅ Submit Review</button>
+    </form>
+  {% else %}
+    <!-- Submission missing - disable form or show error -->
+    <p class="text-danger"><em>Error: submission data missing.</em></p>
+    <button type="submit" class="btn btn-success px-4 rounded-pill" disabled>✅ Submit Review</button>
+  {% endif %}
+</div>
+
+<!-- 🛠 Bootstrap client-side validation -->
+<script>
+(() => {
+  'use strict';
+  const forms = document.querySelectorAll('.needs-validation');
+  Array.from(forms).forEach(form => {
+    form.addEventListener('submit', event => {
+      if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      form.classList.add('was-validated');
+    }, false);
+  });
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}📄 Upload Confirmation - {{ test.title }}{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <h2 class="mb-4 text-primary">✅ Bulk Upload Completed</h2>
+
+  <div class="alert alert-success">
+    <strong>{{ test.title }}</strong> has been processed successfully.
+  </div>
+
+  <div class="mb-4">
+    <h5 class="text-muted">Test ID: {{ test.id }}</h5>
+    <p><strong>Uploaded by:</strong> {{ current_user.name }} ({{ current_user.email }})</p>
+  </div>
+
+  <hr>
+
+  <h4 class="mb-3">📁 Split Scripts</h4>
+  {% if split_paths %}
+    <ul class="list-group mb-3">
+      {% for path in split_paths %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ path.split('/')[-1] }}
+          <a href="{{ url_for('static', filename=path) }}" target="_blank" class="btn btn-sm btn-outline-primary">📄 View</a>
+        </li>
+      {% endfor %}
+    </ul>
+
+    <form action="{{ url_for('download_zip', test_id=test.id) }}" method="post">
+      <button class="btn btn-outline-secondary btn-sm" type="submit">⬇️ Download All as ZIP</button>
+    </form>
+  {% else %}
+    <p class="text-muted">No split scripts found.</p>
+  {% endif %}
+
+  <hr>
+
+  <h4 class="mb-3">🔍 OCR Split Results</h4>
+  {% if split_results %}
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Detected Name</th>
+            <th>Detected ID</th>
+            <th>Matched Student</th>
+            <th>Confidence</th>
+            <th>Status</th>
+            <th>PDF</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for result in split_results %}
+            <tr class="{% if result.needs_review %}table-warning{% else %}table-success{% endif %}">
+              <td>{{ loop.index }}</td>
+              <td>{{ result.detected_name or '—' }}</td>
+              <td>{{ result.detected_id or '—' }}</td>
+              <td>
+                {% if result.matched %}
+                  {{ result.matched.name }} ({{ result.matched.student_id }})
+                {% else %}
+                  <span class="text-danger">Unmatched</span>
+                {% endif %}
+              </td>
+              <td>{{ result.confidence_score | round(2) }}</td>
+              <td>
+                {% if result.needs_review %}
+                  ⚠️ Needs Review
+                {% else %}
+                  ✅ OK
+                {% endif %}
+              </td>
+              <td>
+                <a href="{{ url_for('static', filename=result.split_pdf_path) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                  📄 View
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted">No detailed OCR results available.</p>
+  {% endif %}
+
+  <hr>
+
+  <h4 class="mb-3">🧾 Presence Table Preview</h4>
+  {% if matched_students or unmatched_students %}
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Student Name</th>
+            <th>Student ID</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in matched_students %}
+            <tr class="table-success">
+              <td>{{ loop.index }}</td>
+              <td>{{ rec.student_name or '—' }}</td>
+              <td>{{ rec.student_id or '—' }}</td>
+              <td>✅ Matched</td>
+            </tr>
+          {% endfor %}
+          {% for rec in unmatched_students %}
+            <tr class="table-danger">
+              <td>{{ loop.index + matched_students|length }}</td>
+              <td>{{ rec.student_name or '—' }}</td>
+              <td>{{ rec.student_id or '—' }}</td>
+              <td>❌ Unmatched</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if unmatched_students %}
+      <a href="{{ url_for('review_test', test_id=test.id) }}" class="btn btn-danger mt-3">
+        🔍 Review Unmatched Entries ({{ unmatched_students|length }})
+      </a>
+    {% endif %}
+  {% else %}
+    <p class="text-muted">No attendance records found.</p>
+  {% endif %}
+
+  <hr>
+
+  {% if presence_csv %}
+    <h5>📥 Download Presence Table (CSV)</h5>
+    <a href="{{ url_for('static', filename=presence_csv) }}" class="btn btn-success btn-sm" download>
+      ⬇️ Download Presence CSV
+    </a>
+  {% endif %}
+
+  <a href="{{ url_for('teacher_bp.dashboard_bp.dashboard') }}" class="btn btn-primary mt-4">⬅️ Back to Dashboard</a>
+</div>
+{% endblock %}
+
+
+

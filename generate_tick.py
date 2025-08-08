@@ -22,3 +22,4 @@ cv2.polylines(img, [points], isClosed=False, color=green, thickness=5)
 tick_path = os.path.join(output_dir, "tick.png")
 cv2.imwrite(tick_path, img)
 print("tick.png created at", tick_path)
+

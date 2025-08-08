@@ -12,3 +12,4 @@ print(f"Student wrote: {student_text}")
 print(f"Similarity score: {score:.2f}")
 
 cv2.imwrite("output/annotated_result.png", annotated)
+

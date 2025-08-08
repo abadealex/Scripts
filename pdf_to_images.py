@@ -19,3 +19,4 @@ for i, image in enumerate(images, start=1):
     image.save(image_path, "PNG")
 
 print(f"✅ Generated {len(images)} page(s) as PNG images in: {output_folder}")
+

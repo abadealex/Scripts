@@ -18,9 +18,10 @@ conn_str = (
 )
 
 try:
-    connection = psycopg2.connect(conn_str)
+            connection = psycopg2.connect(conn_str)
     logging.info("Database connection established successfully")
 except OperationalError as e:
     logging.error(f"Database connection failed: {e}")
 except Exception as e:
     logging.error(f"Unexpected error: {e}")
+

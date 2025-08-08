@@ -9,3 +9,4 @@ cv2.rectangle(img, (20, 20), (80, 80), purple, thickness=-1)
 
 cv2.imwrite('icon_2.png', img)
 print("icon_2.png created")
+

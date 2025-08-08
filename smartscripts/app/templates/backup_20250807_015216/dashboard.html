@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block styles %}
+<style>
+  body { background-color: #f9fafb; }
+  .card { border-radius: 1rem; }
+  .btn-success { background-color: #28a745; border: none; font-weight: bold; }
+  .badge { font-size: 0.85rem; }
+  .progress-bar { transition: width 0.5s ease-in-out; }
+  .file-actions form { display: inline; }
+  .file-actions .btn { margin-bottom: 4px; }
+  ul.file-actions li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  ul.file-actions li form {
+    margin: 0;
+  }
+</style>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h1 class="mb-3 text-primary">?? Teacher Dashboard</h1>
+  <p class="lead">Welcome, <strong>{{ teacher_name }}</strong>!</p>
+
+  <!-- Create New Test -->
+  <div class="card mb-5 shadow-sm border-primary">
+    <div class="card-header bg-primary text-white">
+      <h5>Create New Test</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('teacher_bp.dashboard_bp.create_test') }}">
+        {{ form.hidden_tag() }}
+        <div class="row mb-3">
+          <div class="col-md-4">
+            {{ form.test_title.label(class="form-label") }}
+            {{ form.test_title(class="form-control", required=True) }}
+          </div>
+          <div class="col-md-4">
+            {{ form.subject.label(class="form-label") }}
+            {{ form.subject(class="form-select", required=True) }}
+          </div>
+          <div class="col-md-4">
+            {{ form.grade_level.label(class="form-label") }}
+            {{ form.grade_level(class="form-select") }}
+          </div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-md-6">
+            {{ form.exam_date.label(class="form-label") }}
+            {{ form.exam_date(class="form-control") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control", rows="3") }}
+          </div>
+        </div>
+        <div>
+          {{ form.submit(class="btn btn-success rounded-pill px-4") }}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Uploaded Tests Section -->
+  <h3 class="mb-3 text-primary">?? Your Uploaded Tests</h3>
+
+  <table id="testsTable" class="table table-striped table-bordered table-hover align-middle">
+    <thead class="table-primary">
+      <tr>
+        <th>Test Title</th>
+        <th>Subject</th>
+        <th>Grade</th>
+        <th>Created</th>
+        <th>Files</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if uploaded_tests %}
+        {% for test in uploaded_tests %}
+          {% set file_map = {
+            'question_paper': test.question_paper_path,
+            'rubric': test.rubric_path,
+            'marking_guide': test.marking_guide_path,
+            'answered_script': test.answered_script_path,
+            'class_list': test.class_list_path,
+            'combined_scripts': test.combined_scripts_path
+          } %}
+          {% set label_map = {
+            'question_paper': '?? Question Paper',
+            'rubric': '?? Rubric',
+            'marking_guide': '?? Marking Guide',
+            'answered_script': '?? Answered Script',
+            'class_list': '?? Class List',
+            'combined_scripts': '?? Combined Scripts'
+          } %}
+          {% set uploaded_count = 0 %}
+          {% for file_path in file_map.values() %}
+            {% if file_path %}
+              {% set uploaded_count = uploaded_count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {% set complete = (uploaded_count == file_map|length) %}
+          <tr>
+            <td>{{ test.title }}</td>
+            <td>{{ test.subject }}</td>
+            <td>{{ test.grade_level }}</td>
+            <td>{{ test.created_at.strftime('%Y-%m-%d') if test.created_at else '-' }}</td>
+            <td>
+              <ul class="list-unstyled file-actions mb-0">
+                {% for type, file_path in file_map.items() %}
+                  <li class="mb-1 d-flex align-items-center gap-2" title="{{ file_path or 'No file uploaded' }}">
+                    <span>{{ label_map[type] }}:</span>
+                    {% if file_path %}
+                      <span class="text-success" aria-label="Uploaded">??</span>
+                      <a href="{{ url_for('upload_bp.review_file', test_id=test.id, file_type=type) }}" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="Review {{ label_map[type] }}">Review</a>
+                      <form method="POST" action="{{ url_for('upload_bp.delete_file', test_id=test.id, file_type=type) }}" onsubmit="return confirm('Delete this file?')" style="display:inline;">
+                        {{ csrf_token() }}
+                        <button type="submit" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete {{ label_map[type] }}">Delete</button>
+                      </form>
+                    {% else %}
+                      <span class="text-danger" aria-label="Not uploaded">?</span>
+                      <a href="{{ url_for('upload_bp.upload_test_materials', test_id=test.id) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Upload {{ label_map[type] }}">Upload</a>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            </td>
+            <td>
+              <span class="badge {{ 'bg-success' if complete else 'bg-warning text-dark' }}">
+                {{ 'Complete' if complete else 'Incomplete' }}
+              </span>
+              <div class="progress mt-1" style="height: 5px;">
+                <div class="progress-bar {{ 'bg-success' if complete else 'bg-warning' }}" role="progressbar"
+                     style="width: {{ (uploaded_count / file_map|length * 100) | round(0) }}%">
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="d-flex flex-column gap-1">
+                <a href="{{ url_for('upload_bp.upload_test_materials', test_id=test.id) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Manage all materials">
+                  ?? Manage All
+                </a>
+                <form action="{{ url_for('dashboard_bp.delete_file', test_id=test.id, file_type='all') }}" method="POST" onsubmit="return confirm('Delete this test?')">
+                  {{ csrf_token() }}
+                  <button type="submit" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete all files for this test">??? Delete All</button>
+                </form>
+                {% if test.unmatched_count %}
+                  <a href="{{ url_for('review_test', test_id=test.id) }}" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" title="Review unmatched entries">
+                    <i class="fa fa-exclamation-triangle"></i> Review ({{ test.unmatched_count }})
+                  </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="7" class="text-center">No tests uploaded yet.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (el) {
+      new bootstrap.Tooltip(el);
+    });
+
+    // Safe DataTable initialization
+    if (!$.fn.DataTable.isDataTable('#testsTable')) {
+      $('#testsTable').DataTable({
+        pageLength: 10,
+        responsive: true,
+        language: {
+          search: "?? Search:",
+          lengthMenu: "Show _MENU_ entries",
+          info: "Showing _START_ to _END_ of _TOTAL_ entries",
+          paginate: {
+            next: "Next",
+            previous: "Previous"
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

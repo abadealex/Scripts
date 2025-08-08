@@ -1,18 +1,21 @@
 import os
 import re
-import fitz  # PyMuPDF
+import tempfile
 from uuid import uuid4
-from werkzeug.utils import secure_filename
 
-from pdf2image import convert_from_path
+import fitz  # PyMuPDF
 from PIL import Image
 import pytesseract
-import tempfile
+from pdf2image import convert_from_path
+from sqlalchemy.exc import SQLAlchemyError
+from flask import current_app, flash
+from werkzeug.utils import secure_filename
 
 from smartscripts.extensions import celery, db
 from smartscripts.models import Test, ExtractedStudentScript
+from smartscripts.services.ocr_pipeline import process_combined_student_scripts
 
-# Directory where extracted student scripts PDFs will be saved
+# Directory for saving extracted scripts
 UPLOAD_DIR = os.path.join('smartscripts', 'app', 'static', 'uploads', 'extracted')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -30,12 +33,19 @@ def run_ocr_on_test(self, test_id):
 @celery.task(bind=True)
 def run_ocr_on_merged_pdf(self, test_id, file_path):
     """
-    OCR task that works on a user-uploaded merged PDF (absolute path given).
+    OCR task for a user-uploaded merged PDF.
     """
     if not os.path.exists(file_path):
         return f"File not found: {file_path}"
-
     return _process_pdf_with_ocr(self, test_id, file_path)
+
+
+@celery.task
+def run_student_script_ocr_pipeline(test_id, class_list_path, scripts_pdf_path):
+    """
+    ? New OCR pipeline task for class list + merged student scripts.
+    """
+    process_combined_student_scripts(test_id, class_list_path, scripts_pdf_path)
 
 
 def _process_pdf_with_ocr(task_self, test_id, pdf_path):
@@ -62,6 +72,7 @@ def _process_pdf_with_ocr(task_self, test_id, pdf_path):
                 name = name_match.group(1).strip()
                 student_id = id_match.group(2).strip()
 
+                # If we already started another student's script, save it
                 if current_script['name'] and i != current_script['start']:
                     script = split_pdf_and_create_script(
                         pdf_path, test_id,
@@ -79,7 +90,7 @@ def _process_pdf_with_ocr(task_self, test_id, pdf_path):
                 meta={'current': i + 1, 'total': total_pages, 'progress': progress}
             )
 
-        # Save last script
+        # Save the last student script
         if current_script['name']:
             script = split_pdf_and_create_script(
                 pdf_path, test_id,
@@ -88,9 +99,20 @@ def _process_pdf_with_ocr(task_self, test_id, pdf_path):
             )
             extracted_scripts.append(script)
 
+    # Save to database
     for s in extracted_scripts:
         db.session.add(s)
-    db.session.commit()
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f'Database error: {e}')
+        flash('A database error occurred.', 'danger')
+        return {
+            'state': 'FAILURE',
+            'message': f'Database error: {str(e)}'
+        }
 
     return {
         'state': 'SUCCESS',

@@ -3,35 +3,76 @@
 {% block title %}Login - SmartScripts{% endblock %}
 
 {% block content %}
-<h2 class="text-center mb-4">Login to SmartScripts</h2>
-<form method="POST" class="w-50 mx-auto">
-    {{ form.hidden_tag() }}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <h2 class="text-center mb-4">Login to SmartScripts</h2>
 
-    <div class="mb-3">
-        {{ form.email.label(class="form-label") }}
-        {{ form.email(class="form-control", placeholder="Enter your email") }}
-        {% for error in form.email.errors %}
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="alert alert-danger">
+            {% for message in messages %}
+              <p>{{ message }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ form.email.label(class="form-label") }}
+          {{ form.email(class="form-control", placeholder="Enter your email", id="email") }}
+          {% for error in form.email.errors %}
             <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
-    </div>
+          {% endfor %}
+        </div>
 
-    <div class="mb-3">
-        {{ form.password.label(class="form-label") }}
-        {{ form.password(class="form-control", placeholder="Enter your password") }}
-        {% for error in form.password.errors %}
+        <div class="mb-3">
+          {{ form.password.label(class="form-label") }}
+          <div class="input-group">
+            {{ form.password(class="form-control", placeholder="Enter your password", id="password") }}
+            <button type="button" class="btn btn-outline-secondary" id="toggle-password" tabindex="-1">
+              <i class="bi bi-eye-slash" id="password-icon"></i>
+            </button>
+          </div>
+          {% for error in form.password.errors %}
             <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
-    </div>
+          {% endfor %}
+        </div>
 
-    <div class="mb-3 form-check">
-        {{ form.remember(class="form-check-input") }}
-        {{ form.remember.label(class="form-check-label") }}
-    </div>
+        <div class="mb-3 form-check">
+          {{ form.remember(class="form-check-input", id="remember") }}
+          {{ form.remember.label(class="form-check-label", for="remember") }}
+        </div>
 
-    <button type="submit" class="btn btn-primary w-100">Login</button>
+        <button type="submit" class="btn btn-primary w-100">Login</button>
 
-    <div class="mt-3 text-center">
-        <small>Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a></small>
+        <div class="mt-3 text-center">
+          <small>Don't have an account? 
+            <a href="{{ url_for('teacher_bp.auth_bp.register') }}">Register here</a>
+          </small>
+        </div>
+      </form>
     </div>
-</form>
+  </div>
+</div>
+
+<!-- Password Toggle Script -->
+<script>
+  document.getElementById('toggle-password').addEventListener('click', function () {
+    const passwordField = document.getElementById('password');
+    const passwordIcon = document.getElementById('password-icon');
+    if (passwordField.type === 'password') {
+      passwordField.type = 'text';
+      passwordIcon.classList.replace('bi-eye-slash', 'bi-eye');
+    } else {
+      passwordField.type = 'password';
+      passwordIcon.classList.replace('bi-eye', 'bi-eye-slash');
+    }
+  });
+</script>
 {% endblock %}
+
+

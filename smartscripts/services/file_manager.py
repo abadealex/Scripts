@@ -39,3 +39,4 @@ def organize_into_batch_folder(base_folder: str, batch_name: str, files: List[st
     """
     batch_folder = os.path.join(base_folder, batch_name)
     return move_files(files, batch_folder)
+

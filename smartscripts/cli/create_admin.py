@@ -15,8 +15,14 @@ def promote(email):
             return
 
         user.role = 'admin'
+try:
         db.session.commit()
+except SQLAlchemyError as e:
+db.session.rollback()
+current_app.logger.error(f'Database error: {e}')
+flash('A database error occurred.', 'danger')
         click.echo(f"User {email} promoted to admin.")
 
 if __name__ == "__main__":
     promote()
+

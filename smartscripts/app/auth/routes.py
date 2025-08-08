@@ -1,96 +1,73 @@
-from flask import render_template, redirect, url_for, flash, request, current_app
-from flask_login import login_user, logout_user, login_required, current_user
-from flask_principal import Identity, AnonymousIdentity, identity_changed, identity_loaded, RoleNeed, UserNeed
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import (
+    render_template, redirect, url_for, flash,
+    request, current_app, send_file, Blueprint
+)
+from flask_login import login_required, current_user
+from sqlalchemy.exc import SQLAlchemyError
 
-from smartscripts.models import User  # fixed import here
-from smartscripts.app.forms import LoginForm, RegisterForm  # assuming forms.py is inside app/
+from smartscripts.utils.analytics_helpers import generate_pdf_report
+from smartscripts.models import Test, GradedScript, TeacherReview
+from smartscripts.extensions import db
 
-from . import auth_bp  # Blueprint instance
+# ? Correct placement — outside of the import block
+auth_bp = Blueprint('auth_bp', __name__)
 
-# Identity loading hook
-@identity_loaded.connect_via(auth_bp)
-def on_identity_loaded(sender, identity):
-    from smartscripts.app import principal  # Local import
-    identity.user = current_user
-    if not current_user.is_anonymous:
-        identity.provides.add(UserNeed(current_user.id))
-        if current_user.role:
-            identity.provides.add(RoleNeed(current_user.role))
+@auth_bp.route('/')
+def index():
+    return render_template('main/index.html')
 
 
-@auth_bp.route('/login', methods=['GET', 'POST'])
-def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('main_bp.index'))
-
-    form = LoginForm()
-    if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
-        if user and check_password_hash(user.password, form.password.data):
-            login_user(user)
-            identity_changed.send(
-                current_app._get_current_object(),
-                identity=Identity(user.id)
-            )
-            flash('Logged in successfully.', 'success')
-
-            # Redirect based on role
-            if user.role == 'teacher':
-                return redirect(url_for('teacher_bp.dashboard'))
-            elif user.role == 'student':
-                return redirect(url_for('student_bp.dashboard'))
-            elif user.role == 'admin':
-                return redirect(url_for('admin_bp.dashboard'))
-            else:
-                return redirect(url_for('main_bp.index'))
-        else:
-            flash('Invalid email or password.', 'danger')
-
-    return render_template('auth/login.html', form=form)
-
-
-@auth_bp.route('/register', methods=['GET', 'POST'])
-def register():
-    if current_user.is_authenticated:
-        return redirect(url_for('main_bp.index'))
-
-    from smartscripts.app import db  # Local import
-
-    form = RegisterForm()
-    if form.validate_on_submit():
-        hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256')
-        new_user = User(
-            username=form.username.data,
-            email=form.email.data,
-            password=hashed_password,
-            role=form.role.data.lower()
-        )
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            flash('Registration successful. You can now log in.', 'success')
-            return redirect(url_for('auth.login'))
-        except Exception as e:
-            db.session.rollback()
-            flash('Registration failed due to a server error.', 'danger')
-            print(f"[ERROR] Registration DB Commit: {e}")
-    elif request.method == 'POST':
-        flash('Please correct the errors below.', 'danger')
-        for field, errors in form.errors.items():
-            for error in errors:
-                flash(f"{field.capitalize()}: {error}", 'danger')
-
-    return render_template('auth/register.html', form=form)
-
-
-@auth_bp.route('/logout')
+@auth_bp.route('/download_report/<int:test_id>')
 @login_required
-def logout():
-    logout_user()
-    identity_changed.send(
-        current_app._get_current_object(),
-        identity=AnonymousIdentity()
-    )
-    flash('You have been logged out.', 'info')
-    return redirect(url_for('auth.login'))
+def download_report(test_id):
+    test = Test.query.get_or_404(test_id)
+    try:
+        pdf_path = generate_pdf_report(test_id)
+        return send_file(pdf_path, as_attachment=True)
+    except Exception as e:
+        current_app.logger.exception(f"? Failed to generate report: {e}")
+        flash("?? Could not generate report. Please try again later.", "danger")
+        return redirect(url_for('main_bp.index'))  # Optional: move this route to main_bp
+
+
+@auth_bp.route('/review', methods=['GET'])
+@login_required
+def teacher_review():
+    scripts = GradedScript.query.filter_by(teacher_id=current_user.id).all()
+    return render_template('main/teacher_review.html', scripts=scripts)
+
+
+@auth_bp.route('/review/submit', methods=['POST'])
+@login_required
+def submit_teacher_review():
+    try:
+        script_id = request.form.get('script_id')
+        question_id = request.form.get('question_id') or ""
+        original_text = request.form.get('original_text') or ""
+        corrected_text = request.form.get('corrected_text') or ""
+
+        if not all([script_id, question_id.strip(), original_text.strip(), corrected_text.strip()]):
+            flash("? All fields are required for review submission.", "danger")
+            return redirect(url_for('auth_bp.teacher_review'))
+
+        review = TeacherReview(
+            script_id=script_id,
+            question_id=str(question_id),
+            original_text=str(original_text),
+            corrected_text=str(corrected_text),
+            reviewer_id=current_user.id,
+            timestamp=db.func.current_timestamp()
+        )
+        db.session.add(review)
+        db.session.commit()
+        flash("? Review submitted successfully.", "success")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f"Database error during review: {e}")
+        flash("? A database error occurred.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Unexpected error: {e}")
+        flash("?? An unexpected error occurred.", "danger")
+
+    return redirect(url_for('auth_bp.teacher_review'))

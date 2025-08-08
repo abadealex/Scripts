@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}🛠 Manual Page Review{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <h3 class="mb-4 text-primary">🛠 Manual Review for Page {{ page_num }}</h3>
+
+  {% if image_path %}
+    <div class="text-center mb-4">
+      <img src="{{ url_for('file_routes_bp.uploaded_file', filename=image_path|basename) }}"
+           alt="Page Image"
+           class="img-fluid rounded border shadow"
+           style="max-height: 800px;">
+    </div>
+  {% else %}
+    <div class="alert alert-warning d-flex align-items-center" role="alert">
+      ⚠️ <span class="ms-2">No image found for this page.</span>
+    </div>
+  {% endif %}
+
+  <form method="POST"
+        action="{{ url_for('teacher_bp.submit_review', test_id=test_id, page_num=page_num) }}"
+        class="mt-4">
+
+    {{ csrf_field() }}
+
+    <div class="mb-3">
+      <label for="decision" class="form-label">📋 Is this a front page?</label>
+      <select name="decision" id="decision" class="form-select" required>
+        <option value="">-- Select --</option>
+        <option value="Front Page">✅ Front Page</option>
+        <option value="Not Front Page">❌ Not Front Page</option>
+        <option value="Uncertain">🤔 Uncertain</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="comment" class="form-label">📝 Comment (optional)</label>
+      <textarea name="comment" id="comment" class="form-control" rows="3"
+                placeholder="Any notes or reasoning..."></textarea>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center">
+      <button type="submit" class="btn btn-primary">
+        💾 Save & Continue
+      </button>
+
+      <a href="{{ url_for('teacher_bp.review_split_page', test_id=test_id, page_num=page_num + 1) }}"
+         class="btn btn-outline-secondary">
+        ⏭️ Skip to Next Page
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

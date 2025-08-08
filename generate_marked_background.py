@@ -9,3 +9,4 @@ cv2.rectangle(img, (0, 0), (100, 100), gray, thickness=-1)
 
 cv2.imwrite('marked_background.png', img)
 print("marked_background.png created")
+

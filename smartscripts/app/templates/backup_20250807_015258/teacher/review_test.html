@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container my-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="text-primary">🧪 Review Test: <strong>{{ test.title }}</strong></h2>
+      <p class="text-muted"><strong>Exam Date:</strong> {{ test.date.strftime('%Y-%m-%d') }}</p>
+    </div>
+    {% if next_page_num is defined %}
+      <a href="{{ url_for('teacher_bp.review_split_page', test_id=test.id, page_num=next_page_num) }}"
+         class="btn btn-outline-secondary">
+        ⏭️ Skip to Next Page
+      </a>
+    {% endif %}
+  </div>
+
+  <!-- Upload Student Scripts Section -->
+  <div class="mb-4 p-3 border rounded bg-light">
+    <h5>📤 Upload Student Scripts</h5>
+    <form method="POST" action="{{ url_for('teacher_bp.upload_bp.upload_bulk_scripts', test_id=test.id) }}" enctype="multipart/form-data" class="d-flex align-items-center gap-3">
+      {{ csrf_token() }}
+      <input type="file" name="student_scripts" accept=".pdf,.zip" required>
+      <button type="submit" class="btn btn-primary">Upload</button>
+    </form>
+  </div>
+
+  <!-- Extract Class List & AI Grading Buttons -->
+  <div class="mb-4 d-flex gap-3">
+    <form method="POST" action="{{ url_for('teacher_bp.review_bp.extract_class_list', test_id=test.id) }}">
+      {{ csrf_token() }}
+      <button type="submit" class="btn btn-secondary">🧾 Extract Class List</button>
+    </form>
+
+    <form method="POST" action="{{ url_for('teacher_bp.review_bp.start_ai_grading', test_id=test.id) }}">
+      {{ csrf_token() }}
+      <button type="submit" class="btn btn-success">🤖 Start AI Grading</button>
+    </form>
+  </div>
+
+  <!-- ✅ Uploaded Files Section -->
+  <div class="mb-4">
+    <h5 class="text-secondary">📂 Uploaded Files</h5>
+
+    {% for file_type, file_path in {
+      'guide': test.answer_key_path,
+      'rubric': test.rubric_path,
+      'answered': test.answered_script_path
+    }.items() if file_path %}
+    <div class="mb-2">
+      <span class="me-2">{{ file_type|capitalize }}:</span>
+      <a href="{{ url_for('view_uploaded_file', path=file_path) }}" class="btn btn-sm btn-info">📄 Review</a>
+      <form action="{{ url_for('teacher_bp.delete_uploaded_file', test_id=test.id, file_type=file_type) }}"
+            method="POST" style="display:inline;">
+        {{ csrf_token() }}
+        <button type="submit" class="btn btn-sm btn-danger">❌ Delete</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if prior_review %}
+    <div class="alert alert-info">
+      📝 This page was previously marked as
+      <strong>{{ 'Front Page' if prior_review.is_front_page else 'Not Front Page' }}</strong>
+      by <strong>{{ prior_review_user.username }}</strong>
+      at {{ prior_review.timestamp.strftime('%Y-%m-%d %H:%M') }}.
+    </div>
+  {% endif %}
+
+  {% if highlighted_lines %}
+  <div class="card my-4">
+    <div class="card-header bg-info text-white">
+      🔍 OCR Keyword Highlights
+    </div>
+    <div class="card-body">
+      <pre class="bg-light p-3 rounded" style="white-space: pre-wrap;">
+{% for line in highlighted_lines %}
+{{ line | safe }}
+{% endfor %}
+      </pre>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ✅ Review Table and Controls -->
+  <div class="mt-5">
+    <h4 class="text-secondary">🔍 Review Extracted Student Info (with Suggestions)</h4>
+
+    {% if detected_students %}
+      <div class="d-flex gap-2 mb-3">
+        <button type="button" class="btn btn-outline-secondary" id="autofill-btn">🪄 Auto-fill Blank Overrides</button>
+        <a href="{{ url_for('export_reviewed_submissions', test_id=test.id) }}" class="btn btn-outline-success">📥 Export to CSV</a>
+        <a href="{{ url_for('teacher_bp.upload.upload_bulk_scripts', test_id=test.id) }}" class="btn btn-outline-primary">📤 Upload Bulk Scripts</a>
+        <a href="{{ url_for('teacher_bp.upload.upload_test_materials') }}" class="btn btn-outline-info">➕ Upload More Test Materials</a>
+      </div>
+
+      <div class="mb-3">
+        <label for="confidenceRange" class="form-label">
+          🎚️ Highlight Rows by Confidence Threshold: <span id="confidenceValue">0.00</span>
+        </label>
+        <input type="range" class="form-range" min="0" max="1" step="0.01" id="confidenceRange" value="0.00">
+      </div>
+
+      <form id="override-form" method="POST" action="{{ url_for('submit_overrides', test_id=test.id) }}">
+        {{ csrf_token() }}
+        <div id="loading-indicator" class="text-center mb-3" style="display: none;">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Saving...</span>
+          </div>
+          <div>Saving, please wait...</div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover align-middle" id="studentTable">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>PDF</th>
+                <th>Detected Name</th>
+                <th>Detected ID</th>
+                <th>Suggested Match</th>
+                <th>Confidence</th>
+                <th>Override Name</th>
+                <th>Override ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for student in detected_students %}
+              <tr class="confidence-row" data-score="{{ student.combined_score }}">
+                <td>{{ loop.index }}</td>
+                <td><a href="{{ url_for('view_student_script', path=student.pdf_path) }}" target="_blank">📄 View</a></td>
+                <td>{{ student.detected_name }}</td>
+                <td>{{ student.detected_id }}</td>
+                <td>
+                  <span data-bs-toggle="tooltip" title="Name: {{ student.name_score }}, ID: {{ student.id_score }}">
+                    {{ student.suggested_name }}<br><small>{{ student.suggested_id }}</small>
+                  </span>
+                </td>
+                <td>{{ student.combined_score }}</td>
+                <td>
+                  <input type="text" name="corrected_name_{{ loop.index0 }}" value="{{ student.suggested_name }}" data-original="{{ student.suggested_name }}" class="form-control override-input">
+                </td>
+                <td>
+                  <input type="text" name="corrected_id_{{ loop.index0 }}" value="{{ student.suggested_id }}" data-original="{{ student.suggested_id }}" class="form-control override-input">
+                </td>
+                <input type="hidden" name="submission_id_{{ loop.index0 }}" value="{{ student.submission_id }}">
+                <input type="hidden" name="pdf_path_{{ loop.index0 }}" value="{{ student.pdf_path }}">
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <input type="hidden" name="count" value="{{ detected_students|length }}">
+        <button type="submit" class="btn btn-primary mt-3">💾 Save Overrides</button>
+      </form>
+    {% else %}
+      <div class="alert alert-info mt-3">
+        ℹ️ No detected student scripts yet. Please check back after processing.
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Bulk Review Link -->
+  <a href="{{ url_for('teacher_bp.review_bp.bulk_review', test_id=test.id) }}" class="btn btn-warning mt-4">
+    📦 Bulk Override Review
+  </a>
+
+</div>
+
+<!-- JavaScript Section -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    $('#override-form').submit(function (e) {
+      e.preventDefault();
+      const form = $(this);
+      const submitBtn = form.find('button[type="submit"]');
+      $('#loading-indicator').show();
+      submitBtn.prop('disabled', true);
+
+      $.ajax({
+        type: form.attr('method'),
+        url: form.attr('action'),
+        data: form.serialize(),
+        success: function () {
+          alert("✅ Overrides saved successfully.");
+        },
+        error: function () {
+          alert("❌ Failed to save overrides.");
+        },
+        complete: function () {
+          $('#loading-indicator').hide();
+          submitBtn.prop('disabled', false);
+        }
+      });
+    });
+
+    $('#autofill-btn').click(function () {
+      $('table tbody tr').each(function () {
+        const row = $(this);
+        const nameInput = row.find('input[name^="corrected_name_"]');
+        const idInput = row.find('input[name^="corrected_id_"]');
+        if (!nameInput.val().trim()) nameInput.val(row.find('td').eq(4).text().trim());
+        if (!idInput.val().trim()) idInput.val(row.find('td').eq(4).find('small').text().trim());
+        nameInput.trigger('input');
+        idInput.trigger('input');
+      });
+    });
+
+    $('.override-input').on('input', function () {
+      const input = $(this);
+      const original = input.data('original');
+      input.toggleClass('border-warning', input.val().trim() !== original.trim());
+    });
+
+    const confidenceSlider = document.getElementById('confidenceRange');
+    const confidenceValue = document.getElementById('confidenceValue');
+
+    confidenceSlider.addEventListener('input', function () {
+      const threshold = parseFloat(this.value);
+      confidenceValue.textContent = threshold.toFixed(2);
+
+      document.querySelectorAll('.confidence-row').forEach(row => {
+        const score = parseFloat(row.dataset.score);
+        if (score < threshold) {
+          row.classList.add('table-danger');
+          row.classList.remove('table-warning');
+        } else if (score < 0.9) {
+          row.classList.add('table-warning');
+          row.classList.remove('table-danger');
+        } else {
+          row.classList.remove('table-warning', 'table-danger');
+        }
+      });
+    });
+
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  });
+</script>
+
+{% endblock %}
+
+
+
+
+

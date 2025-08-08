@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Dict, List, Any
 from flask import Blueprint, request, jsonify, current_app, url_for
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import BadRequest
 
@@ -37,7 +38,7 @@ def grade_question(question: Dict[str, Any]) -> Dict[str, Any]:
 
     # Simple grading logic
     try:
-        student_answer_stripped = student_answer.strip().lower()
+                student_answer_stripped = student_answer.strip().lower()
         correct_answer_stripped = correct_answer.strip().lower()
     except Exception as e:
         current_app.logger.error(f"Error normalizing answers: {e}")
@@ -88,7 +89,7 @@ def mark_submission(file_path: str, guide: Dict[str, Any]) -> Dict[str, Any]:
     current_app.logger.info(f"Grading file: {file_path} using guide: {guide.get('title', 'Untitled Guide')}")
 
     try:
-        with open(file_path, "r") as f:
+                with open(file_path, "r") as f:
             submission = json.load(f)
     except Exception as e:
         current_app.logger.error(f"Failed to read submission JSON: {e}")
@@ -151,7 +152,7 @@ def grade():
     - guide: grading guide JSON (optional, else load default from guides/{test_id}.json)
     """
     try:
-        if "file" not in request.files:
+                if "file" not in request.files:
             return jsonify({"error": "No file part in the request"}), 400
         file = request.files["file"]
         if file.filename == "":
@@ -179,7 +180,7 @@ def grade():
         # Load grading guide
         if guide_json:
             try:
-                guide = json.loads(guide_json)
+                        guide = json.loads(guide_json)
             except Exception:
                 return jsonify({"error": "Invalid guide JSON"}), 400
         else:
@@ -204,9 +205,9 @@ def grade():
         annotated_path = os.path.join(marked_dir, "annotated.png")
         if not os.path.exists(annotated_path):
             try:
-                from PIL import Image, ImageDraw
+                        from PIL import Image, ImageDraw
                 img = Image.new("RGB", (400, 200), color=(255, 255, 255))
-                d = ImageDraw.Draw(img)
+= ImageDraw.Draw(img)
                 d.text((10, 80), f"Annotated Result for {student_id}", fill=(0, 0, 0))
                 img.save(annotated_path)
             except ImportError:
@@ -232,3 +233,4 @@ def grade():
     except Exception as e:
         current_app.logger.error(f"Unexpected error during grading: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+

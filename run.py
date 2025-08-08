@@ -48,7 +48,8 @@ if __name__ == '__main__':
     hypercorn_config.reload = debug  # Enable auto reload in debug mode
 
     try:
-        asyncio.run(hypercorn.asyncio.serve(app, hypercorn_config))
+                asyncio.run(hypercorn.asyncio.serve(app, hypercorn_config))
     except Exception as e:
         logging.exception("Failed to start server")
         sys.exit(1)
+

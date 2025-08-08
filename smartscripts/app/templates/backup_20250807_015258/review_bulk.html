@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}📝 Bulk Review Overrides{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <h2 class="mb-4">📝 Bulk Override Review</h2>
+
+  <!-- 🌙 Dark mode toggle -->
+  <button id="darkModeToggle" class="btn btn-secondary mb-3">🌓 Toggle Dark Mode</button>
+
+  <!-- 🎚️ Confidence slider -->
+  <div class="mb-3 d-flex align-items-center gap-2">
+    <label for="confidenceSlider" class="mb-0">Filter by confidence:</label>
+    <input type="range" id="confidenceSlider" min="0" max="100" value="70" class="form-range w-auto">
+    <span id="confidenceValue">70%</span>
+    <span tabindex="0" data-bs-toggle="tooltip" data-bs-placement="right" title="Only show entries with OCR confidence above this threshold" style="cursor: help;">💡</span>
+  </div>
+
+  <!-- 📁 CSV/JSON upload form -->
+  <form method="POST" enctype="multipart/form-data" action="{{ url_for('teacher_bp.submit_bulk_overrides', test_id=test_id) }}">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      <input type="file" name="bulk_file" accept=".csv,.json" required class="form-control">
+    </div>
+    <button type="submit" class="btn btn-primary">Submit Overrides</button>
+  </form>
+
+  <!-- 📤 Export button -->
+  <a href="{{ url_for('teacher_bp.export_overrides', test_id=test_id) }}" class="btn btn-success mt-3">Export Overrides</a>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Bootstrap 5 tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    document.getElementById('darkModeToggle').onclick = () => {
+      document.body.classList.toggle('bg-dark');
+      document.body.classList.toggle('text-light');
+    };
+
+    const confidenceSlider = document.getElementById('confidenceSlider');
+    const confidenceValue = document.getElementById('confidenceValue');
+    confidenceSlider.oninput = function () {
+      confidenceValue.textContent = this.value + '%';
+    };
+  });
+</script>
+{% endblock %}
+

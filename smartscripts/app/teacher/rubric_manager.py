@@ -1,5 +1,7 @@
 import uuid
 from typing import List, Dict, Optional
+from smartscripts.utils.file_ops import duplicate_manifest_for_reference
+from smartscripts.utils.file_ops import update_manifest
 
 # In-memory storage simulating database for rubrics
 rubrics_db = {}
@@ -45,3 +47,4 @@ def delete_rubric(rubric_id: str) -> bool:
         del rubrics_db[rubric_id]
         return True
     return False
+

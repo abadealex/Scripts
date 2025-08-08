@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}?? Class Reports{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <h2 class="mb-4 text-success">?? Downloadable Reports</h2>
+
+  <ul class="list-group shadow-sm">
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span>?? Score Distribution (PDF)</span>
+      <a href="{{ url_for('teacher_bp.download_report', type='score_distribution') }}" class="btn btn-sm btn-outline-primary">?? Download</a>
+    </li>
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span>?? Attendance Report</span>
+      <a href="{{ url_for('teacher_bp.download_report', type='attendance') }}" class="btn btn-sm btn-outline-primary">?? Download</a>
+    </li>
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span>?? Fairness Audit</span>
+      <a href="{{ url_for('teacher_bp.download_report', type='fairness') }}" class="btn btn-sm btn-outline-primary">?? Download</a>
+    </li>
+  </ul>
+</div>
+{% endblock %}
+

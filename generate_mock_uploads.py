@@ -60,3 +60,4 @@ for folder, files in structure.items():
                 f.write(content)
 
 print(f"✅ Mock uploads directory created at ./{base_dir}/")
+

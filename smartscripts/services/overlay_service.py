@@ -18,7 +18,7 @@ def load_overlay_image(type_: str) -> np.ndarray:
 
     overlay = cv2.imread(path, cv2.IMREAD_UNCHANGED)
     if overlay is None or overlay.shape[2] != 4:
-        raise ValueError(f"Overlay image must have 4 channels (including alpha).")
+        raise ValueError("Overlay image must have 4 channels (including alpha).")
 
     return overlay
 
@@ -56,18 +56,6 @@ def add_overlay(
 ) -> np.ndarray:
     """
     Adds tick or cross overlay to an image with optional scaling, rotation, centering.
-
-    Args:
-        image (np.ndarray): Input image (BGR or grayscale)
-        overlay_type (str): 'tick' or 'cross'
-        position (tuple): Placement (x, y) or center if centered=True
-        scale (float | str): Scaling factor or "auto" for ~5% of image width
-        rotation_deg (float): Degrees to rotate overlay
-        centered (bool): If True, position is treated as center of overlay
-        strict (bool): If False, suppresses errors and logs warnings
-
-    Returns:
-        np.ndarray: Image with overlay applied
     """
     try:
         overlay = load_overlay_image(overlay_type)
@@ -100,9 +88,9 @@ def add_overlay(
         if y + h > image.shape[0] or x + w > image.shape[1]:
             raise ValueError("Overlay does not fit in image at specified position.")
 
-        roi = image[y:y+h, x:x+w]
+        roi = image[y:y + h, x:x + w]
         blended = (1.0 - alpha_mask) * roi + alpha_mask * overlay_rgb
-        image[y:y+h, x:x+w] = blended.astype(np.uint8)
+        image[y:y + h, x:x + w] = blended.astype(np.uint8)
 
     except Exception as e:
         if strict:
@@ -121,17 +109,15 @@ def annotate_batch(
 ) -> list[np.ndarray]:
     """
     Annotate multiple images with overlay symbols.
-
-    Args:
-        images (list): List of images
-        overlay_type (str): 'tick' or 'cross'
-        positions (list): List of (x, y) tuples (can be centers if centered=True)
-        kwargs: Passed to add_overlay()
-
-    Returns:
-        list: List of annotated images
     """
     result = []
     for img, pos in zip(images, positions):
         result.append(add_overlay(img, overlay_type, position=pos, **kwargs))
     return result
+
+
+def generate_overlay(script, scores):
+    from smartscripts.utils.image_helpers import draw_marks_on_script, save_overlay_image
+    image = draw_marks_on_script(script.pdf_path, scores)
+    save_overlay_image(script.id, image)
+

@@ -38,3 +38,4 @@ def get_session(engine):
     except Exception as e:
         logging.error(f"Failed to create DB session: {e}")
         raise
+

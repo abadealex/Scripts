@@ -64,3 +64,4 @@ def batch_align_multiple_submissions(submissions, guide_questions, threshold=0.7
         align_questions(blocks, guide_questions, threshold, use_gpt_fallback)
         for blocks in submissions
     ]
+

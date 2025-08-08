@@ -4,13 +4,24 @@
 
 {% block content %}
 <h2 class="text-center mb-4">Create Your SmartScripts Account</h2>
+
+{% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <div class="alert alert-success">
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
 <form method="POST" class="w-50 mx-auto">
     {{ form.hidden_tag() }}
 
     <div class="mb-3">
-        {{ form.name.label(class="form-label") }}
-        {{ form.name(class="form-control", placeholder="Enter your name") }}
-        {% for error in form.name.errors %}
+        {{ form.username.label(class="form-label") }}
+        {{ form.username(class="form-control", placeholder="Enter your username") }}
+        {% for error in form.username.errors %}
             <div class="text-danger small">{{ error }}</div>
         {% endfor %}
     </div>
@@ -54,3 +65,5 @@
     </div>
 </form>
 {% endblock %}
+
+

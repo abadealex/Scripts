@@ -2,6 +2,7 @@ import uuid
 import json
 from pathlib import Path
 from flask import current_app
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 
 # ✅ Import shared utility functions
@@ -67,7 +68,7 @@ def create_test_directories(test_id):
         base_path = Path(base_path_str)
         path = base_path / str(test_id)
         try:
-            path.mkdir(parents=True, exist_ok=True)
+                    path.mkdir(parents=True, exist_ok=True)
             current_app.logger.info(f"Created directory: {path}")
         except Exception as e:
             current_app.logger.error(f"Failed to create directory {path}: {e}")
@@ -119,9 +120,10 @@ def is_released(test_id: str) -> bool:
     if not metadata_path.exists():
         return False
     try:
-        with metadata_path.open('r') as f:
+                with metadata_path.open('r') as f:
             metadata = json.load(f)
         return metadata.get('released', False)
     except Exception as e:
         current_app.logger.error(f"Failed to read metadata file {metadata_path}: {e}")
         return False
+

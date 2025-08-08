@@ -1,5 +1,6 @@
 import os
 from flask import Blueprint, request, jsonify, abort, current_app, url_for
+from sqlalchemy.exc import SQLAlchemyError
 from flask_login import login_required, current_user
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
@@ -29,10 +30,15 @@ def create_submission():
         teacher_id=current_user.teacher_id if current_user.role == 'student' else current_user.id
     )
     db.session.add(submission)
-    db.session.commit()
+try:
+        db.session.commit()
+except SQLAlchemyError as e:
+db.session.rollback()
+current_app.logger.error(f'Database error: {e}')
+flash('A database error occurred.', 'danger')
 
     try:
-        start_ai_marking(submission.id)
+                start_ai_marking(submission.id)
     except Exception as e:
         current_app.logger.error(f"AI marking trigger failed for submission {submission.id}: {e}")
 
@@ -93,7 +99,12 @@ def update_submission(submission_id):
         return jsonify({'error': 'Content is required'}), 400
 
     submission.content = content
-    db.session.commit()
+try:
+        db.session.commit()
+except SQLAlchemyError as e:
+db.session.rollback()
+current_app.logger.error(f'Database error: {e}')
+flash('A database error occurred.', 'danger')
     return jsonify({'id': submission.id, 'content': submission.content})
 
 
@@ -114,13 +125,18 @@ def delete_submission(submission_id):
             safe_file_path = secure_filename(file_path)
             full_path = os.path.join(UPLOAD_FOLDER, 'submissions', safe_file_path)
             try:
-                if os.path.exists(full_path):
+                        if os.path.exists(full_path):
                     os.remove(full_path)
             except Exception as e:
                 current_app.logger.error(f"Failed to delete file {file_path}: {e}")
 
     db.session.delete(submission)
-    db.session.commit()
+try:
+        db.session.commit()
+except SQLAlchemyError as e:
+db.session.rollback()
+current_app.logger.error(f'Database error: {e}')
+flash('A database error occurred.', 'danger')
     return jsonify({'message': f'Submission {submission_id} deleted'}), 200
 
 
@@ -156,7 +172,7 @@ def upload_submissions(test_id):
         return jsonify({"error": "No files uploaded"}), 400
 
     try:
-        submissions = save_and_mark_batch(files, test_id)
+                submissions = save_and_mark_batch(files, test_id)
         return jsonify({
             "message": f"Uploaded {len(submissions)} submissions and started marking.",
             "submission_ids": [s.id for s in submissions]
@@ -164,3 +180,4 @@ def upload_submissions(test_id):
     except Exception as e:
         current_app.logger.error(f"Batch upload failed: {e}")
         return jsonify({"error": str(e)}), 400
+

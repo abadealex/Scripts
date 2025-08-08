@@ -66,7 +66,8 @@ def create_pdf_report(student_name, guide_name, question_scores, total_score, ou
         pdf.add_image(annotated_img_path)
 
     try:
-        pdf.output(output_path)
+                pdf.output(output_path)
         print(f"PDF successfully saved at: {output_path}")
     except Exception as e:
         print(f"Error saving PDF: {e}")
+

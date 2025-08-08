@@ -1,214 +1,471 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Teacher Dashboard{% endblock %}
 
 {% block styles %}
 <style>
   body {
-    background-color: #f8f9fa !important; /* add !important if base styles override */
+    background-color: #f9fafb;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  body.dark-mode {
+    background-color: #1e1e2f;
+    color: #f8f9fa;
   }
   .card {
     border-radius: 1rem;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+    transition: background-color 0.3s, color 0.3s;
+  }
+  .card.dark-mode {
+    background-color: #2c2c3e;
+    color: #e1e1e8;
   }
   .btn-success {
     background-color: #28a745;
     border: none;
     font-weight: bold;
   }
+  .badge {
+    font-size: 0.85rem;
+    cursor: default;
+  }
+  .progress-bar {
+    transition: width 0.5s ease-in-out;
+  }
+  .file-actions form {
+    display: inline;
+  }
+  ul.file-actions li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .dataTables_wrapper .dt-buttons {
+    margin-bottom: 1rem;
+  }
+
+  /* Subject row color coding */
+  tr[data-status="complete"] {
+    background-color: #d4edda; /* light green */
+  }
+  tr[data-status="incomplete"] {
+    background-color: #fff3cd; /* light yellow */
+  }
+  body.dark-mode tr[data-status="complete"] {
+    background-color: #3a5a39; /* dark green */
+  }
+  body.dark-mode tr[data-status="incomplete"] {
+    background-color: #645b31; /* dark yellow */
+  }
+
+  /* Card View Styles */
+  #cardContainer {
+    display: none;
+    gap: 1rem;
+  }
+  #cardContainer.active {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  #cardContainer .test-card {
+    flex: 1 1 calc(33% - 1rem);
+    min-width: 280px;
+    background: #fff;
+    padding: 1rem;
+    border-radius: 1rem;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.15);
+    transition: background-color 0.3s, color 0.3s;
+    position: relative;
+  }
+  body.dark-mode #cardContainer .test-card {
+    background-color: #2c2c3e;
+    color: #e1e1e8;
+  }
+  #cardContainer .test-card h5 {
+    margin-bottom: 0.5rem;
+  }
+  #cardContainer .test-card .badge {
+    margin-bottom: 0.75rem;
+  }
+  #cardContainer .test-card .progress {
+    height: 7px;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+  #cardContainer .test-card .progress-bar {
+    height: 7px;
+  }
+  #cardContainer .test-card .actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  #cardContainer .test-card .actions a,
+  #cardContainer .test-card .actions form button {
+    flex: 1 1 auto;
+    font-size: 0.85rem;
+  }
+
+  /* Buttons for file upload status */
+  .btn-uploaded {
+    background-color: #28a745 !important; /* green */
+    color: white !important;
+    pointer-events: none;
+    cursor: default;
+    font-weight: bold;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.85rem;
+    border-radius: 0.25rem;
+    border: none !important;
+  }
+  .btn-not-uploaded {
+    background-color: #dc3545 !important; /* red */
+    color: white !important;
+    pointer-events: none;
+    cursor: default;
+    font-weight: bold;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.85rem;
+    border-radius: 0.25rem;
+    border: none !important;
+  }
+
+  /* Tooltip */
+  .badge[data-bs-toggle="tooltip"] {
+    cursor: help;
+  }
 </style>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 {% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-  <h1 class="mb-4 text-primary">👩‍🏫 Teacher Dashboard</h1>
+<div class="container my-4">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 class="text-primary mb-0" aria-label="Teacher Dashboard">📚 Teacher Dashboard</h1>
+    <div class="d-flex gap-2 flex-wrap">
+      <button id="darkToggle" class="btn btn-sm btn-outline-dark" aria-pressed="false" aria-label="Toggle Dark Mode">🌙 Toggle Dark Mode</button>
+      <button id="toggleView" class="btn btn-sm btn-outline-secondary" aria-pressed="false" aria-label="Toggle Card View">🃏 Toggle Card View</button>
+    </div>
+  </div>
+
   <p class="lead">Welcome, <strong>{{ teacher_name }}</strong>!</p>
 
-  <!-- Create Test Form -->
-  <div class="card mb-5 shadow-sm border-primary">
+  <!-- Filter Controls -->
+  <div class="mb-4 d-flex gap-2 flex-wrap align-items-center" role="region" aria-label="Test filter controls">
+    <div>
+      <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="filterTests('complete')" aria-pressed="false">✅ Complete</button>
+      <button type="button" class="btn btn-outline-warning btn-sm me-2" onclick="filterTests('incomplete')" aria-pressed="false">⚠️ Incomplete</button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" onclick="filterTests('all')" aria-pressed="true">🗂️ Show All</button>
+    </div>
+  </div>
+
+  <!-- Create New Test Form -->
+  <div class="card mb-5 shadow-sm border-primary {% if 'dark-mode' in body_class %}dark-mode{% endif %}">
     <div class="card-header bg-primary text-white">
-      <h2 class="h5 mb-0">Create New Test</h2>
+      <h5>Create New Test</h5>
     </div>
     <div class="card-body">
-      <form method="POST" action="{{ url_for('teacher_bp.create_test') }}">
+      <form method="POST" action="{{ url_for('teacher_bp.dashboard_bp.create_test') }}" novalidate>
         {{ form.hidden_tag() }}
-
-        <div class="mb-3">
-          {{ form.test_title.label(class="form-label") }}
-          {{ form.test_title(class="form-control", placeholder="Enter test title") }}
+        <div class="row mb-3">
+          <div class="col-md-4">
+            {{ form.test_title.label(class="form-label") }}
+            {{ form.test_title(class="form-control", required=True, aria_required="true") }}
+          </div>
+          <div class="col-md-4">
+            {{ form.subject.label(class="form-label") }}
+            {{ form.subject(class="form-select", required=True, aria_required="true") }}
+          </div>
+          <div class="col-md-4">
+            {{ form.grade_level.label(class="form-label") }}
+            {{ form.grade_level(class="form-select") }}
+          </div>
         </div>
-
-        <div class="mb-3">
-          {{ form.subject.label(class="form-label") }}
-          {{ form.subject(class="form-select") }}
+        <div class="row mb-3">
+          <div class="col-md-6">
+            {{ form.exam_date.label(class="form-label") }}
+            {{ form.exam_date(class="form-control") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control", rows="3") }}
+          </div>
         </div>
-
-        <div class="mb-3">
-          {{ form.grade_level.label(class="form-label") }}
-          {{ form.grade_level(class="form-select") }}
+        <div>
+          {{ form.submit(class="btn btn-success rounded-pill px-4") }}
         </div>
-
-        <div class="mb-3">
-          {{ form.exam_date.label(class="form-label") }}
-          {{ form.exam_date(class="form-control", placeholder="YYYY-MM-DD") }}
-        </div>
-
-        <div class="mb-3">
-          {{ form.description.label(class="form-label") }}
-          {{ form.description(class="form-control", rows="3", placeholder="Add test description") }}
-        </div>
-
-        {{ form.submit(class="btn btn-success rounded-pill px-4") }}
       </form>
     </div>
   </div>
 
-  <hr>
+  <!-- Uploaded Tests Table -->
+  <h3 class="mb-3 text-primary">🗂️ Your Uploaded Tests</h3>
 
-  <h2 class="mb-4 text-secondary">Your Uploaded Tests</h2>
-
-  {% if tests %}
-    <div class="row gy-4">
-      {% for test in tests %}
-        <div class="col-md-6 col-lg-4">
-          <div class="card shadow-sm h-100 border-info">
-            <div class="card-body d-flex flex-column">
-              <h5 class="card-title mb-1 text-primary">
-                {{ test.title }}
-                <small class="text-muted fs-6">({{ test.date.strftime('%Y-%m-%d') }})</small>
-              </h5>
-              <p class="card-text mb-3">
-                <span class="badge bg-info text-dark me-2">{{ test.subject }}</span>
-                <span class="badge bg-secondary">{{ test.grade_level }}</span>
-              </p>
-
-              <ul class="list-unstyled mb-4 flex-grow-1 small">
-                <li><strong>Marking Guide:</strong>
-                  {% if test.file_guide_url %}
-                    <a href="{{ test.file_guide_url }}" target="_blank" class="link-primary fw-semibold">View PDF</a>
-                  {% else %}
-                    <span class="badge bg-danger">Not uploaded</span>
-                  {% endif %}
-                </li>
-                <li><strong>Rubric:</strong>
-                  {% if test.file_rubric_url %}
-                    <a href="{{ test.file_rubric_url }}" target="_blank" class="link-primary fw-semibold">View PDF</a>
-                  {% else %}
-                    <span class="badge bg-danger">Not uploaded</span>
-                  {% endif %}
-                </li>
-                <li><strong>Answered Script:</strong>
-                  {% if test.answered_script_url %}
-                    <a href="{{ test.answered_script_url }}" target="_blank" class="link-primary fw-semibold">View PDF</a>
-                  {% else %}
-                    <span class="badge bg-danger">Not uploaded</span>
-                  {% endif %}
-                </li>
-                <li><strong>Student Submissions:</strong>
-                  {% if test.submissions and test.submissions|length > 0 %}
-                    <ul class="list-unstyled ms-3 mt-1 small">
-                      {% for submission in test.submissions %}
-                        <li>
-                          <a href="{{ submission.file_url }}" target="_blank" class="link-secondary text-decoration-underline">
-                            {{ submission.filename }}
-                          </a>
-                        </li>
-                      {% endfor %}
-                    </ul>
-                  {% else %}
-                    <span class="badge bg-warning text-dark">No student submissions uploaded</span>
-                  {% endif %}
-                </li>
-              </ul>
-
-              <!-- OCR Progress UI -->
-              <div id="ocr-progress-container-{{ test.id }}" style="display:none; margin-top:20px;">
-                <label><strong>Processing OCR:</strong></label>
-                <div class="progress rounded-pill">
-                  <div id="ocr-progress-bar-{{ test.id }}" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">
-                    0%
-                  </div>
-                </div>
-              </div>
-
-              <div class="mt-auto d-flex gap-2 flex-wrap">
-                <a href="{{ url_for('teacher_bp.review_test', test_id=test.id) }}" class="btn btn-info btn-sm rounded-pill flex-grow-1 flex-md-grow-0">
-                  Review Test
-                </a>
-
-                <form method="POST" action="{{ url_for('teacher_bp.start_ai_grading', test_id=test.id) }}" class="m-0 flex-grow-1 flex-md-grow-0" onsubmit="startGrading(event, {{ test.id }})">
-                  {{ ai_grading_form.csrf_token }}
-                  <button type="submit" class="btn btn-success btn-sm rounded-pill w-100">
-                    Start AI Grading
-                  </button>
-                </form>
-
-                <form method="POST" action="{{ url_for('teacher_bp.delete_test', test_id=test.id) }}" class="m-0 flex-grow-1 flex-md-grow-0" onsubmit="return confirm('Are you sure you want to delete this test and all related submissions?');">
-                  {{ ai_grading_form.csrf_token }}
-                  <button type="submit" class="btn btn-danger btn-sm rounded-pill w-100">
-                    Delete Test
-                  </button>
-                </form>
+  <table id="testsTable" class="table table-striped table-bordered align-middle" aria-describedby="tableDesc">
+    <caption id="tableDesc" class="visually-hidden">List of your uploaded tests with status and actions</caption>
+    <thead class="table-primary">
+      <tr>
+        <th scope="col">Test Title</th>
+        <th scope="col">Subject</th>
+        <th scope="col">Grade</th>
+        <th scope="col">Created</th>
+        <th scope="col">Status</th>
+        <th scope="col">Question Paper</th>
+        <th scope="col">Rubric</th>
+        <th scope="col">Marking Guide</th>
+        <th scope="col">Answered Script</th>
+        <th scope="col">Class List</th>
+        <th scope="col">Combined Scripts</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for test in uploaded_tests %}
+        {% set file_map = {
+          'question_paper': test.question_paper_path,
+          'rubric': test.rubric_path,
+          'marking_guide': test.marking_guide_path,
+          'answered_script': test.answered_script_path,
+          'student_list': test.class_list_path or test.student_list_path,
+          'combined_scripts': test.combined_scripts_path
+        } %}
+        {% set uploaded_count = file_map.values() | select('string') | map('trim') | select | list | length %}
+        {% set complete = uploaded_count == file_map | length %}
+        <tr data-status="{{ 'complete' if complete else 'incomplete' }}">
+          <td>{{ test.title }}</td>
+          <td>{{ test.subject }}</td>
+          <td>{{ test.grade_level }}</td>
+          <td>{{ test.created_at.strftime('%Y-%m-%d') if test.created_at else '-' }}</td>
+          <td>
+            <span
+              class="badge {{ 'bg-success' if complete else 'bg-warning text-dark' }}"
+              data-bs-toggle="tooltip"
+              data-bs-html="true"
+              title="
+                {% for ftype, fpath in file_map.items() %}
+                  {{ ftype.replace('_', ' ').title() }}: {% if fpath %}✅ Uploaded{% else %}❌ Missing{% endif %}<br>
+                {% endfor %}
+              "
+            >
+              {{ 'Complete' if complete else 'Incomplete' }}
+            </span>
+            <div class="progress mt-1" style="height: 5px;" aria-label="Upload progress">
+              <div class="progress-bar {{ 'bg-success' if complete else 'bg-warning' }}" role="progressbar"
+                   style="width: {{ (uploaded_count / (file_map|length) * 100) | round(0) }}%" aria-valuenow="{{ (uploaded_count / (file_map|length) * 100) | round(0) }}" aria-valuemin="0" aria-valuemax="100">
               </div>
             </div>
+          </td>
+
+          {# File status buttons #}
+          <td>
+            {% if test.question_paper_path %}
+              <button class="btn-uploaded" disabled>Uploaded</button>
+            {% else %}
+              <button class="btn-not-uploaded" disabled>Not Uploaded</button>
+            {% endif %}
+          </td>
+          <td>
+            {% if test.rubric_path %}
+              <button class="btn-uploaded" disabled>Uploaded</button>
+            {% else %}
+              <button class="btn-not-uploaded" disabled>Not Uploaded</button>
+            {% endif %}
+          </td>
+          <td>
+            {% if test.marking_guide_path %}
+              <button class="btn-uploaded" disabled>Uploaded</button>
+            {% else %}
+              <button class="btn-not-uploaded" disabled>Not Uploaded</button>
+            {% endif %}
+          </td>
+          <td>
+            {% if test.answered_script_path %}
+              <button class="btn-uploaded" disabled>Uploaded</button>
+            {% else %}
+              <button class="btn-not-uploaded" disabled>Not Uploaded</button>
+            {% endif %}
+          </td>
+          <td>
+            {% if test.class_list_path or test.student_list_path %}
+              <button class="btn-uploaded" disabled>Uploaded</button>
+            {% else %}
+              <button class="btn-not-uploaded" disabled>Not Uploaded</button>
+            {% endif %}
+          </td>
+          <td>
+            {% if test.combined_scripts_path %}
+              <button class="btn-uploaded" disabled>Uploaded</button>
+            {% else %}
+              <button class="btn-not-uploaded" disabled>Not Uploaded</button>
+            {% endif %}
+          </td>
+
+          <td>
+            <a href="{{ url_for('teacher_bp.manage_routes.manage_test_files', test_id=test.id) }}" class="btn btn-primary" aria-label="Manage {{ test.title }}">
+              Manage
+            </a>
+          </td>
+        </tr>
+      {% else %}
+      <tr>
+        <td colspan="12" class="text-center">No uploaded tests found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Card View Container -->
+  <div id="cardContainer" class="mt-4" aria-live="polite" aria-atomic="true">
+    {% for test in uploaded_tests %}
+      {% set file_map = {
+        'question_paper': test.question_paper_path,
+        'rubric': test.rubric_path,
+        'marking_guide': test.marking_guide_path,
+        'answered_script': test.answered_script_path,
+        'student_list': test.class_list_path or test.student_list_path,
+        'combined_scripts': test.combined_scripts_path
+      } %}
+      {% set uploaded_count = file_map.values() | select('string') | map('trim') | select | list | length %}
+      {% set complete = uploaded_count == file_map | length %}
+      <div class="test-card" data-status="{{ 'complete' if complete else 'incomplete' }}" role="region" aria-label="Test card for {{ test.title }}">
+        <h5>{{ test.title }}</h5>
+        <div><strong>Subject:</strong> {{ test.subject }}</div>
+        <div><strong>Grade:</strong> {{ test.grade_level }}</div>
+        <div><strong>Created:</strong> {{ test.created_at.strftime('%Y-%m-%d') if test.created_at else '-' }}</div>
+        <span
+          class="badge {{ 'bg-success' if complete else 'bg-warning text-dark' }}"
+          data-bs-toggle="tooltip"
+          data-bs-html="true"
+          title="
+            {% for ftype, fpath in file_map.items() %}
+              {{ ftype.replace('_', ' ').title() }}: {% if fpath %}✅ Uploaded{% else %}❌ Missing{% endif %}<br>
+            {% endfor %}
+          "
+        >
+          {{ 'Complete' if complete else 'Incomplete' }}
+        </span>
+        <div class="progress mb-3" aria-label="Upload progress">
+          <div class="progress-bar {{ 'bg-success' if complete else 'bg-warning' }}" role="progressbar"
+               style="width: {{ (uploaded_count / (file_map|length) * 100) | round(0) }}%" aria-valuenow="{{ (uploaded_count / (file_map|length) * 100) | round(0) }}" aria-valuemin="0" aria-valuemax="100">
           </div>
         </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <div class="alert alert-info">
-      No tests uploaded yet. <a href="{{ url_for('teacher_bp.upload_test_materials') }}" class="alert-link">Upload a new test</a>.
-    </div>
-  {% endif %}
+        <div class="actions">
+          <a href="{{ url_for('teacher_bp.manage_routes.manage_test_files', test_id=test.id) }}" class="btn btn-primary" aria-label="Manage {{ test.title }}">
+            Manage
+          </a>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-function startGrading(event, testId) {
-  event.preventDefault();
-  const form = event.target;
-
-  fetch(form.action, {
-    method: 'POST',
-    headers: { 'X-CSRFToken': form.querySelector('[name=csrf_token]').value }
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.task_id) {
-      pollOCRStatus(data.task_id, testId);
-    } else {
-      alert('Failed to start grading task.');
+  // Initialize DataTables with destroy check to avoid reinitialization error
+  .ready(function() {
+    if ($.fn.DataTable.isDataTable('#testsTable')) {
+      #testsTable.DataTable().destroy();
     }
-  })
-  .catch(() => alert('Error starting task.'));
-}
+    #testsTable.DataTable({
+      responsive: true,
+      dom: 'Bfrtip',
+      buttons: ['csv', 'excel']
+    });
 
-function pollOCRStatus(taskId, testId) {
-  const bar = document.getElementById(`ocr-progress-bar-${testId}`);
-  const container = document.getElementById(`ocr-progress-container-${testId}`);
-  container.style.display = 'block';
+    // Initialize Bootstrap tooltips for badges
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+      new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+  });
 
-  function updateStatus() {
-    fetch(`/task_status/${taskId}`)
-      .then(response => response.json())
-      .then(data => {
-        if (data.state === 'PROGRESS') {
-          const percent = data.status.progress || 0;
-          bar.style.width = percent + '%';
-          bar.innerText = percent + '%';
-          setTimeout(updateStatus, 1000);
-        } else if (data.state === 'SUCCESS') {
-          bar.style.width = '100%';
-          bar.innerText = '✅ Complete';
-          bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
-          bar.classList.add('bg-success');
-        } else if (data.state === 'FAILURE') {
-          bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
-          bar.classList.add('bg-danger');
-          bar.innerText = '❌ Failed';
-        }
-      });
+  // Dark Mode toggle with persistence
+  const darkToggleBtn = document.getElementById('darkToggle');
+  const body = document.body;
+
+  function setDarkMode(enabled) {
+    if (enabled) {
+      body.classList.add('dark-mode');
+      localStorage.setItem('darkMode', 'true');
+      darkToggleBtn.setAttribute('aria-pressed', 'true');
+    } else {
+      body.classList.remove('dark-mode');
+      localStorage.setItem('darkMode', 'false');
+      darkToggleBtn.setAttribute('aria-pressed', 'false');
+    }
   }
 
-  updateStatus();
-}
+  darkToggleBtn.addEventListener('click', () => {
+    const isDark = body.classList.contains('dark-mode');
+    setDarkMode(!isDark);
+  });
+
+  // On page load, set mode based on localStorage
+  if (localStorage.getItem('darkMode') === 'true') {
+    setDarkMode(true);
+  } else {
+    setDarkMode(false);
+  }
+
+  // Filter tests by status (complete, incomplete, all)
+  function filterTests(status) {
+    // Update button aria-pressed for accessibility
+    const buttons = document.querySelectorAll('.mb-4 button');
+    buttons.forEach(btn => {
+      btn.setAttribute('aria-pressed', btn.textContent.trim().toLowerCase().includes(status) || status === 'all' ? 'true' : 'false');
+    });
+
+    // Filter table rows
+    document.querySelectorAll('#testsTable tbody tr').forEach(row => {
+      row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
+    });
+    // Filter cards
+    document.querySelectorAll('#cardContainer .test-card').forEach(card => {
+      card.style.display = (status === 'all' || card.dataset.status === status) ? '' : 'none';
+    });
+  }
+
+  // Card view toggle
+  const toggleViewBtn = document.getElementById('toggleView');
+  const cardContainer = document.getElementById('cardContainer');
+  const testsTable = document.getElementById('testsTable');
+
+  // Save user preference
+  function setView(view) {
+    if (view === 'card') {
+      cardContainer.classList.add('active');
+      testsTable.style.display = 'none';
+      localStorage.setItem('dashboardView', 'card');
+      toggleViewBtn.setAttribute('aria-pressed', 'true');
+    } else {
+      cardContainer.classList.remove('active');
+      testsTable.style.display = '';
+      localStorage.setItem('dashboardView', 'table');
+      toggleViewBtn.setAttribute('aria-pressed', 'false');
+    }
+  }
+
+  toggleViewBtn.addEventListener('click', () => {
+    const isCard = cardContainer.classList.contains('active');
+    setView(isCard ? 'table' : 'card');
+  });
+
+  // Load saved view on page load
+  const savedView = localStorage.getItem('dashboardView') || 'table';
+  setView(savedView);
 </script>
 {% endblock %}

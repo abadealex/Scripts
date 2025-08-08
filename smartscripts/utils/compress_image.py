@@ -12,3 +12,4 @@ def compress_image(input_path, output_path, max_size_kb=4000):
             break
         quality -= 5
     return output_path
+

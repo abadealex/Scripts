@@ -88,10 +88,18 @@
 
     <!-- Retry Grading Button -->
     <div class="mt-4">
-        <form action="{{ url_for('student_bp.retry_submission', submission_id=submission.id) }}" method="post">
+        {% if submission %}
+<form action="{{ url_for('student_bp.retry_submission', submission_id=submission.id) }}" method="post">
+{% else %}
+<!-- Submission missing - form disabled or show error -->
+<p><em>Error: submission data missing.</em></p>
+{% endif %}
             <button type="submit" class="btn btn-warning">Retry Grading</button>
         </form>
     </div>
 
 </div>
 {% endblock %}
+
+
+

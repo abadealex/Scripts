@@ -15,3 +15,4 @@ def merge_images_vertically(image_paths, output_path):
         y_offset += img.height
 
     merged_image.save(output_path)
+

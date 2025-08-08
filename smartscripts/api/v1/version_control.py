@@ -15,3 +15,4 @@ async def rollback(version_hash: str):
     if not success:
         raise HTTPException(status_code=400, detail="Rollback failed")
     return {"status": "rollback successful"}
+

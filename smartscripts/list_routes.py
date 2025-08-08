@@ -6,3 +6,4 @@ with app.app_context():
     print("Registered Flask routes:")
     for rule in app.url_map.iter_rules():
         print(f"{rule} -> endpoint: {rule.endpoint}")
+

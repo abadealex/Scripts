@@ -22,8 +22,14 @@ def seed():
         sub = Submission(student=student, content="This is a sample answer.")
         db.session.add(sub)
 
+try:
         db.session.commit()
+except SQLAlchemyError as e:
+db.session.rollback()
+current_app.logger.error(f'Database error: {e}')
+flash('A database error occurred.', 'danger')
         click.echo("Demo data seeded.")
 
 if __name__ == "__main__":
     seed()
+

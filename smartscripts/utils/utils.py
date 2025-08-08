@@ -1,8 +1,10 @@
 import os
 import magic
-from flask_login import current_user
 from flask import abort, current_app
+from flask_login import current_user
 from werkzeug.utils import secure_filename
+
+from typing import Optional
 
 # Base upload directory
 BASE_UPLOAD_FOLDER = 'static/uploads'
@@ -60,43 +62,43 @@ def safe_remove(filepath: str):
         current_app.logger.warning(f"Failed to delete file {filepath}: {e}")
 
 
-def save_file(file, subfolder: str, test_id: int = None, student_id: int = None) -> str:
+def save_file(
+    file,
+    subfolder: str,
+    test_id: Optional[int] = None,
+    student_id: Optional[int] = None
+) -> str:
     """
-    Saves an uploaded file under the correct subfolder path based on type and IDs.
+    Saves an uploaded file under a structured path based on subfolder and optional IDs.
     Returns a path relative to BASE_UPLOAD_FOLDER.
     """
-    # Determine folder structure
-    if subfolder == 'guides':
-        folder_path = os.path.join(BASE_UPLOAD_FOLDER, 'guides')
+    # Routing logic for folder path
+    subfolder_routes = {
+        'guides': os.path.join(BASE_UPLOAD_FOLDER, 'guides'),
+        'rubrics': os.path.join(BASE_UPLOAD_FOLDER, 'rubrics'),
+        'scripts': lambda: os.path.join(BASE_UPLOAD_FOLDER, 'scripts', f'test_id_{test_id}'),
+        'submissions': lambda: os.path.join(BASE_UPLOAD_FOLDER, 'submissions', f'test_id_{test_id}', f'student_id_{student_id}'),
+        'ocr_images': lambda: os.path.join(BASE_UPLOAD_FOLDER, 'submissions', f'test_id_{test_id}', f'student_id_{student_id}'),
+        'marked': lambda: os.path.join(BASE_UPLOAD_FOLDER, 'marked', f'test_id_{test_id}', f'student_id_{student_id}'),
+        'audit_logs': lambda: os.path.join(BASE_UPLOAD_FOLDER, 'audit_logs', f'test_id_{test_id}', f'student_id_{student_id}'),
+        'exports': lambda: os.path.join(BASE_UPLOAD_FOLDER, 'final_exports', f'test_id_{test_id}')
+    }
 
-    elif subfolder == 'rubrics':
-        folder_path = os.path.join(BASE_UPLOAD_FOLDER, 'rubrics')
-
-    elif subfolder == 'scripts' and test_id:
-        folder_path = os.path.join(BASE_UPLOAD_FOLDER, 'scripts', f'test_id_{test_id}')
-
-    elif subfolder == 'submissions' and test_id and student_id:
-        folder_path = os.path.join(BASE_UPLOAD_FOLDER, 'submissions', f'test_id_{test_id}', f'student_id_{student_id}')
-
-    elif subfolder == 'ocr_images' and test_id and student_id:
-        folder_path = os.path.join(BASE_UPLOAD_FOLDER, 'submissions', f'test_id_{test_id}', f'student_id_{student_id}')
-
-    elif subfolder == 'marked' and test_id and student_id:
-        folder_path = os.path.join(BASE_UPLOAD_FOLDER, 'marked', f'test_id_{test_id}', f'student_id_{student_id}')
-
-    elif subfolder == 'audit_logs' and test_id and student_id:
-        folder_path = os.path.join(BASE_UPLOAD_FOLDER, 'audit_logs', f'test_id_{test_id}', f'student_id_{student_id}')
-
-    elif subfolder == 'exports' and test_id:
-        folder_path = os.path.join(BASE_UPLOAD_FOLDER, 'final_exports', f'test_id_{test_id}')
-
+    # Resolve the correct folder path
+    if subfolder in ('guides', 'rubrics'):
+        folder_path = subfolder_routes[subfolder]
+    elif subfolder in subfolder_routes and callable(subfolder_routes[subfolder]):
+        try:
+            folder_path = subfolder_routes[subfolder]()
+        except TypeError:
+            raise ValueError(f"Missing test_id/student_id for subfolder={subfolder}")
     else:
-        raise ValueError(f"Invalid upload path parameters: subfolder={subfolder}, test_id={test_id}, student_id={student_id}")
+        raise ValueError(f"Invalid upload path: subfolder={subfolder}")
 
     # Ensure directory exists
     os.makedirs(folder_path, exist_ok=True)
 
-    # Save file safely
+    # Save the file
     filename = secure_filename(file.filename)
     full_path = os.path.join(folder_path, filename)
     file.save(full_path)

@@ -62,14 +62,14 @@ def annotate_image_with_text(input_image_path: str, output_image_path: str, anno
     draw = ImageDraw.Draw(txt_layer)
     font_size = 20
     try:
-        font = ImageFont.truetype("arial.ttf", font_size)
+                font = ImageFont.truetype("arial.ttf", font_size)
     except IOError:
         font = ImageFont.load_default()
 
     for ann in annotations:
         fs = ann.get('font_size', font_size)
         try:
-            font = ImageFont.truetype("arial.ttf", fs)
+                    font = ImageFont.truetype("arial.ttf", fs)
         except IOError:
             font = ImageFont.load_default()
         color = ann.get('color', (255, 0, 0))
@@ -77,3 +77,4 @@ def annotate_image_with_text(input_image_path: str, output_image_path: str, anno
 
     combined = Image.alpha_composite(img, txt_layer)
     combined.convert("RGB").save(output_image_path)
+

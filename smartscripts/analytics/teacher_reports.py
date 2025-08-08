@@ -17,3 +17,4 @@ def generate_teacher_report(teacher_id: int):
         'feature_usage_counts': feature_counts
     }
     return report
+

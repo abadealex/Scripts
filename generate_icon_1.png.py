@@ -9,3 +9,4 @@ cv2.circle(img, (50, 50), 40, blue, thickness=-1)
 
 cv2.imwrite('icon_1.png', img)
 print("icon_1.png created")
+

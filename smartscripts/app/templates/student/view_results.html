@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}My Results{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2>?? Test Results</h2>
+  <p><strong>Test:</strong> {{ submission.test_name }}</p>
+  <p><strong>Score:</strong> {{ submission.score }}</p>
+  <p><strong>Grade:</strong> {{ submission.grade }}</p>
+  <p><strong>Rank:</strong> {{ submission.rank }}</p>
+
+  <h4>?? AI Feedback</h4>
+  <p>{{ submission.ai_feedback }}</p>
+
+  <h4>????? Teacher Feedback</h4>
+  <p>{{ submission.teacher_feedback }}</p>
+
+  <h4>?? Progress Chart</h4>
+  <canvas id="progressChart" width="400" height="150"></canvas>
+
+  <h4>?? Download</h4>
+  <a href="{{ url_for('student.download_marked_pdf', submission_id=submission.id) }}" class="btn btn-outline-primary">
+    Download Marked Answer PDF
+  </a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('progressChart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: {{ labels }},
+    datasets: [{
+      label: 'Your Scores',
+      data: {{ scores }},
+      borderColor: 'rgba(75, 192, 192, 1)',
+      tension: 0.1
+    }]
+  }
+});
+</script>
+{% endblock %}
+
+

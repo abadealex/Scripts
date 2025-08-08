@@ -25,4 +25,10 @@ def export_user_data(user_id):
 def delete_user_data(user_id):
     Submission.query.filter_by(user_id=user_id).delete()
     User.query.filter_by(id=user_id).delete()
-    db.session.commit()
+try:
+        db.session.commit()
+except SQLAlchemyError as e:
+db.session.rollback()
+current_app.logger.error(f'Database error: {e}')
+flash('A database error occurred.', 'danger')
+
